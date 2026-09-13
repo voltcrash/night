@@ -519,8 +519,14 @@ test("customizes and persists keyboard shortcuts", async ({ page }) => {
   await page.getByRole("button", { name: "Change Focus search shortcut" }).click();
   await page.keyboard.press("ControlOrMeta+Shift+Y");
   const shortcut = page.getByRole("button", { name: "Change Focus search shortcut" });
-  await expect(shortcut.locator("kbd")).toHaveText(["Ctrl", "Shift", "Y"]);
-  await expect(shortcut.locator(".shortcut-separator")).toHaveText(["+", "+"]);
+  const isMac = await page.evaluate(() => /Mac|iPhone|iPad|iPod/i.test(navigator.platform));
+  if (isMac) {
+    await expect(shortcut.locator("kbd")).toHaveText(["⌘", "⇧", "Y"]);
+    await expect(shortcut.locator(".shortcut-separator")).toHaveCount(0);
+  } else {
+    await expect(shortcut.locator("kbd")).toHaveText(["Ctrl", "Shift", "Y"]);
+    await expect(shortcut.locator(".shortcut-separator")).toHaveText(["+", "+"]);
+  }
   await page.getByRole("button", { name: "Close settings" }).click();
 
   await page.keyboard.press("ControlOrMeta+Shift+Y");
