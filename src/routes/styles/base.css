@@ -1,4 +1,6 @@
-:root {
+/* The light palette doubles as the paper palette, so printed output ignores the dark theme. */
+:root,
+.paper-surface {
   font-family: "Inter Variable", Inter, sans-serif;
   font-synthesis: none;
   color-scheme: light;

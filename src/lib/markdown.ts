@@ -18,8 +18,9 @@ export interface LocalAttachmentUrl {
   url: string;
 }
 
-type HtmlNode = {
-  children?: HtmlNode[];
+export type MarkdownTreeNode = {
+  children?: MarkdownTreeNode[];
+  position?: { start: { line: number }; end: { line: number } };
   properties?: Record<string, unknown>;
   tagName?: string;
   type?: string;
@@ -82,32 +83,86 @@ function allowClasses(
   ];
 }
 
+/** The Markdown lines a block was written on, counted from zero and ending before `end`. */
+export interface SourceLines {
+  start: number;
+  end: number;
+}
+
+export interface RenderedBlock {
+  html: string;
+  /** Whether the node is an element, rather than the whitespace between elements. */
+  element: boolean;
+  /** Absent for top-level elements that were generated rather than written, such as footnotes. */
+  lines?: SourceLines;
+}
+
 export function renderMarkdown(
   source: string,
   resolveLocalUrl?: LocalUrlResolver,
   options: MarkdownRenderOptions = {},
 ): string {
+  return renderMarkdownBlocks(source, resolveLocalUrl, options)
+    .map((block) => block.html)
+    .join("");
+}
+
+/**
+ * Renders a note as its top-level nodes, which join into the HTML of `renderMarkdown`. Elements
+ * carry the lines they came from, so views of the note can be lined up with its source.
+ */
+export function renderMarkdownBlocks(
+  source: string,
+  resolveLocalUrl?: LocalUrlResolver,
+  options: MarkdownRenderOptions = {},
+): RenderedBlock[] {
   const remoteImagePolicy = options.remoteImages ?? "block";
-  const processor = unified()
-    .use(remarkParse)
-    .use(remarkFrontmatter, ["yaml", "toml"])
-    .use(remarkGfm, { singleTilde: false })
-    .use(remarkMath)
-    .use(remarkGemoji)
-    .use(remarkCallouts)
-    .use(remarkWikiLinks)
-    .use(remarkInlineMarks)
-    // Front matter is metadata, not prose, so it is dropped rather than printed.
-    .use(remarkRehype, { clobberPrefix: "", handlers: { toml: noHandler, yaml: noHandler } })
-    .use(rehypeSlug)
-    .use(rehypeSanitize, markdownSchema)
+  const processor = markdownProcessor()
     // KaTeX runs after sanitizing, as its output is generated rather than authored.
     .use(rehypeKatex, { output: "mathml" })
     .use(prefixInternalLinks);
   if (resolveLocalUrl || remoteImagePolicy === "block") {
     processor.use(resolveMarkdownUrls, resolveLocalUrl, remoteImagePolicy);
   }
-  return String(processor.use(rehypeStringify).processSync(source));
+  processor.use(rehypeStringify);
+  const tree = processor.runSync(processor.parse(source)) as MarkdownTreeNode;
+  return (tree.children ?? []).map((node) => ({
+    html: String(processor.stringify(node as Parameters<typeof processor.stringify>[0])),
+    element: node.type === "element",
+    lines: sourceLines(node),
+  }));
+}
+
+export function sourceLines(node: MarkdownTreeNode): SourceLines | undefined {
+  const position = node.position;
+  return position ? { start: position.start.line - 1, end: position.end.line } : undefined;
+}
+
+/**
+ * The sanitized HTML tree of a note, before math is typeset, so math keeps its TeX source. Output
+ * formats other than HTML are written from this tree.
+ */
+export function renderMarkdownTree(source: string): MarkdownTreeNode {
+  const processor = markdownProcessor();
+  return processor.runSync(processor.parse(source)) as MarkdownTreeNode;
+}
+
+function markdownProcessor() {
+  return (
+    unified()
+      .use(remarkParse)
+      .use(remarkFrontmatter, ["yaml", "toml"])
+      .use(remarkGfm, { singleTilde: false })
+      .use(remarkMath)
+      .use(remarkGemoji)
+      .use(remarkCallouts)
+      .use(remarkWikiLinks)
+      .use(remarkInlineMarks)
+      // Front matter is metadata, not prose, so it is dropped rather than printed.
+      .use(remarkRehype, { clobberPrefix: "", handlers: { toml: noHandler, yaml: noHandler } })
+      .use(rehypeSlug)
+      .use(rehypeSanitize, markdownSchema)
+  );
 }
 
 function noHandler(): undefined {
@@ -116,7 +171,7 @@ function noHandler(): undefined {
 
 // Sanitizing rewrites every id to avoid DOM clobbering; hash links have to follow it.
 const prefixInternalLinks: Plugin<[]> = () => (tree) => {
-  visit(tree as HtmlNode, (node) => {
+  visit(tree as MarkdownTreeNode, (node) => {
     const href = node.tagName === "a" ? node.properties?.href : undefined;
     if (typeof href === "string" && href.startsWith("#") && !href.startsWith(`#${ID_PREFIX}`)) {
       node.properties!.href = `#${ID_PREFIX}${href.slice(1)}`;
@@ -157,7 +212,7 @@ const resolveMarkdownUrls: Plugin<[LocalUrlResolver | undefined, RemoteImagePoli
   remoteImagePolicy,
 ) => {
   return (tree) => {
-    const root = tree as HtmlNode;
+    const root = tree as MarkdownTreeNode;
     visit(root, (node) => {
       const property = node.tagName === "img" ? "src" : node.tagName === "a" ? "href" : undefined;
       if (!property || typeof node.properties?.[property] !== "string") return;
@@ -187,7 +242,7 @@ function isRemoteImageUrl(destination: string): boolean {
   return /^(?:https?:)?\/\//i.test(destination);
 }
 
-function visit(node: HtmlNode, callback: (node: HtmlNode) => void): void {
+function visit(node: MarkdownTreeNode, callback: (node: MarkdownTreeNode) => void): void {
   callback(node);
   for (const child of node.children ?? []) visit(child, callback);
 }

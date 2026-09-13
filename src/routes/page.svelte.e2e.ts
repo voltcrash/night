@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// The output switcher shows only the current view until it is hovered.
+async function openOutputSwitcher(page: Page): Promise<void> {
+  await page.locator(".output-switcher").hover();
+}
+
 async function blockNextVaultWrite(page: Page): Promise<void> {
   await page.evaluate(() => {
     const prototype = FileSystemFileHandle.prototype;
@@ -296,8 +301,6 @@ test("formats Markdown while editing in the page pane", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
 
-  await page.getByRole("tab", { name: "Tools" }).click();
-  await page.getByRole("button", { name: "Enable page editing" }).click();
   const line = page.getByRole("textbox", { name: "Markdown line 3" });
   await line.fill("Onyx renders **Markdown** while you keep writing.");
   await expect(line).toContainText("Onyx renders **Markdown** while you keep writing.");
@@ -316,12 +319,11 @@ test("can reveal the active Markdown line while editing the page", async ({ page
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
 
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Editor", exact: true }).click();
-  await page.getByRole("radio", { name: /Reveal Markdown on active line/ }).click();
-  await page.getByRole("button", { name: "Close settings" }).click();
   await page.getByRole("tab", { name: "Tools" }).click();
-  await page.getByRole("button", { name: "Enable page editing" }).click();
+  const inlinePreview = page.getByRole("button", { name: "Inline preview" });
+  await expect(inlinePreview).toHaveAttribute("aria-pressed", "false");
+  await inlinePreview.click();
+  await expect(inlinePreview).toHaveAttribute("aria-pressed", "true");
 
   await page.getByRole("button", { name: "Edit line 3" }).click();
   await expect(page.getByRole("textbox", { name: "Markdown line 3" })).toBeVisible();
@@ -332,25 +334,390 @@ test("keeps both panes synchronized and lets each pane be tucked away", async ({
   const markdown = page.getByRole("textbox", { name: "Markdown editor" });
   await expect(markdown).toBeEnabled();
 
-  await markdown.fill("# Written on the left");
-  await expect(page.locator(".preview-pane h1")).toHaveText("Written on the left");
+  await markdown.fill("# Written on the right");
+  await expect(page.getByRole("textbox", { name: "Markdown line 1" })).toContainText(
+    "Written on the right",
+  );
 
-  await page.getByRole("button", { name: "Hide the Markdown pane" }).click();
+  await page.getByRole("button", { name: "Hide the output pane" }).click();
   await expect(markdown).toBeHidden();
-  await page.getByRole("button", { name: "Show the Markdown pane" }).click();
+  await page.getByRole("button", { name: "Show the output pane" }).click();
   await expect(markdown).toBeVisible();
 
   await page.getByRole("tab", { name: "Tools" }).click();
-  await page.getByRole("button", { name: "Enable page editing" }).click();
-  await page.getByRole("textbox", { name: "Markdown line 1" }).fill("# Written on the right");
-  await expect(markdown).toHaveValue("# Written on the right");
+  await page.getByRole("textbox", { name: "Markdown line 1" }).fill("# Written on the left");
+  await expect(markdown).toHaveValue("# Written on the left");
 
   await page.getByRole("button", { name: "Turn on read-only" }).click();
-  await expect(page.locator(".preview-pane h1")).toHaveText("Written on the right");
+  await expect(page.locator(".preview-pane h1")).toHaveText("Written on the left");
   await page.getByRole("button", { name: "Hide the page pane" }).click();
   await expect(page.locator(".preview-pane")).toBeHidden();
   await page.getByRole("button", { name: "Show the page pane" }).click();
   await expect(page.locator(".preview-pane")).toBeVisible();
+});
+
+type ScrollSide = "output" | "rendered";
+
+// Scrolls one pane so the marker sits where the pane reads its position, then reports how far
+// the marker sits from that point in each pane.
+async function markerOffsets(page: Page, from: ScrollSide | null, marker: string) {
+  return page.evaluate(
+    ({ from, marker }: { from: ScrollSide | null; marker: string }) => {
+      const scrollers = {
+        output: document.querySelector<HTMLElement>(".output-body > :first-child")!,
+        rendered: document.querySelector<HTMLElement>(".preview-pane")!,
+      };
+      const markerTop = (scroller: HTMLElement): number => {
+        if (scroller instanceof HTMLTextAreaElement) {
+          const style = getComputedStyle(scroller);
+          const line = scroller.value.split("\n").findIndex((text) => text.includes(marker));
+          return parseFloat(style.paddingTop) + line * parseFloat(style.lineHeight);
+        }
+        const walker = document.createTreeWalker(scroller, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const text = walker.currentNode as Text;
+          const index = text.data.indexOf(marker);
+          if (index === -1) continue;
+          const range = document.createRange();
+          range.setStart(text, index);
+          range.setEnd(text, index + marker.length);
+          return (
+            range.getBoundingClientRect().top -
+            scroller.getBoundingClientRect().top +
+            scroller.scrollTop
+          );
+        }
+        throw new Error(`${marker} is not shown`);
+      };
+      const offset = (scroller: HTMLElement): number => {
+        const range = scroller.scrollHeight - scroller.clientHeight;
+        const reference = (scroller.clientHeight * scroller.scrollTop) / range;
+        return markerTop(scroller) - scroller.scrollTop - reference;
+      };
+      if (from) {
+        const scroller = scrollers[from];
+        const range = scroller.scrollHeight - scroller.clientHeight;
+        scroller.scrollTop = (markerTop(scroller) * range) / scroller.scrollHeight;
+      }
+      return { output: offset(scrollers.output), rendered: offset(scrollers.rendered) };
+    },
+    { from, marker },
+  );
+}
+
+test("scrolls each pane to the part of the note shown in the other one", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  // Sections differ in length and shape, so a proportional scroll would drift away from them.
+  const sections = Array.from({ length: 30 }, (_, index) => {
+    const body = Array.from(
+      { length: (index % 4) + 1 },
+      (_, line) => `Line ${line} of part ${index}.`,
+    );
+    const extra =
+      index % 3 === 0
+        ? ["", "```", ...Array.from({ length: 14 }, (_, line) => `code ${line}`), "```"]
+        : index % 3 === 1
+          ? ["", "- one", "- two", "- three"]
+          : [];
+    return [`## Marker-${index}`, "", ...body, ...extra].join("\n");
+  });
+  await markdown.fill(sections.join("\n\n"));
+  await expect(page.locator(".preview-pane")).toContainText("Marker-29");
+
+  const views = ["Markdown", "Plain text", "Rich text", "HTML", "PDF"];
+  for (const readOnly of [false, true]) {
+    if (readOnly) {
+      await page.getByRole("tab", { name: "Tools" }).click();
+      await page.getByRole("button", { name: "Turn on read-only" }).click();
+      await expect(page.locator(".preview-pane article.prose")).toBeVisible();
+    }
+    for (const [index, view] of views.entries()) {
+      await openOutputSwitcher(page);
+      await page.getByRole("tab", { name: view }).click();
+      for (const [from, marker] of [
+        ["rendered", `Marker-${7 + index * 3}`],
+        ["output", `Marker-${24 - index * 2}`],
+      ] as const) {
+        const other = from === "output" ? "rendered" : "output";
+        await markerOffsets(page, from, marker);
+        await expect
+          .poll(async () => Math.abs((await markerOffsets(page, null, marker))[other]), {
+            message: `${view} ${readOnly ? "read-only" : "editable"}: ${other} follows ${from} to ${marker}`,
+          })
+          .toBeLessThan(40);
+      }
+    }
+  }
+
+  // Typing at the end keeps the editor on the caret, and the page follows it down.
+  await openOutputSwitcher(page);
+  await page.getByRole("tab", { name: "Markdown" }).click();
+  await markdown.focus();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("\n\nThe last word.");
+  const caretShown = await markdown.evaluate((textarea: HTMLTextAreaElement) => {
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+    const caretTop = textarea.scrollHeight - parseFloat(getComputedStyle(textarea).paddingBottom);
+    return (
+      caretTop - lineHeight >= textarea.scrollTop &&
+      caretTop <= textarea.scrollTop + textarea.clientHeight
+    );
+  });
+  expect(caretShown).toBe(true);
+  await expect(page.locator(".preview-pane").getByText("The last word.")).toBeInViewport();
+});
+
+test("moves a pane by dragging its grip beside the divider or with the arrow keys", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  const shell = page.locator(".editor-shell");
+  const panesBox = await shell.boundingBox();
+  if (!panesBox) throw new Error("The panes are not laid out");
+  const gripOffset = async (name: string) => {
+    const divider = await page.locator(".pane-divider").boundingBox();
+    const box = await page.getByRole("button", { name }).boundingBox();
+    if (!divider || !box) throw new Error("The divider or grip is not laid out");
+    expect(box.y + box.height / 2).toBeCloseTo(divider.y + divider.height / 2, 0);
+    return box.x + box.width / 2 - divider.x;
+  };
+  const leadingOffset = await gripOffset("Move the page pane");
+  expect(leadingOffset).toBeLessThan(-14);
+  expect(leadingOffset).toBeGreaterThan(-40);
+  const trailingOffset = await gripOffset("Move the output pane");
+  expect(trailingOffset).toBeGreaterThan(14);
+  expect(trailingOffset).toBeLessThan(40);
+
+  const gripLocator = page.getByRole("button", { name: "Move the page pane" });
+  const pill = () =>
+    gripLocator.evaluate((element) => getComputedStyle(element, "::after").opacity);
+  expect(await pill()).toBe("0");
+  await gripLocator.hover();
+  await expect.poll(pill).toBe("1");
+
+  const grip = await gripLocator.boundingBox();
+  if (!grip) throw new Error("The page pane grip is not laid out");
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(panesBox.x + panesBox.width / 2, panesBox.y + panesBox.height - 20, {
+    steps: 10,
+  });
+  await expect(page.locator(".pane-drop-slot")).toBeVisible();
+  await page.mouse.up();
+  await expect(shell).toHaveClass(/panes-stacked/);
+  await expect(shell).not.toHaveClass(/panes-swapped/);
+  await expect(page.locator(".pane-drop-slot")).toHaveCount(0);
+  await page.evaluate(() =>
+    Promise.all(
+      document.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+
+  const outputGrip = await page.getByRole("button", { name: "Move the output pane" }).boundingBox();
+  if (!outputGrip) throw new Error("The output pane grip is not laid out");
+  await page.mouse.move(outputGrip.x + outputGrip.width / 2, outputGrip.y + outputGrip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(panesBox.x + panesBox.width - 20, panesBox.y + panesBox.height / 2, {
+    steps: 10,
+  });
+  await page.mouse.up();
+  await expect(shell).not.toHaveClass(/panes-stacked/);
+  await expect(shell).toHaveClass(/panes-swapped/);
+
+  await page.getByRole("button", { name: "Move the page pane" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(shell).not.toHaveClass(/panes-swapped/);
+  await page.evaluate(() =>
+    Promise.all(
+      document.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    ),
+  );
+  expect(await gripOffset("Move the page pane")).toBeGreaterThan(14);
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("tab", { name: "HTML" }).click();
+  await expect(page.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "true");
+  await expect(shell).not.toHaveClass(/panes-swapped/);
+});
+
+test("copies and downloads the Markdown source from the output pane", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill("# Packing list\n\n- **Passport**");
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: async (text: string) => void (state.onyxCopied = text) },
+    });
+  });
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("button", { name: "Copy" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toBe("# Packing list\n\n- **Passport**");
+  await expect(page.getByText("Copied this note as Markdown.")).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  expect((await download).suggestedFilename()).toBe("packing-list.md");
+});
+
+test("shows the note as plain text in the output pane, copies and downloads it", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill("# Grocery list\n\n- **Fresh** bread\n- [Oats](https://example.com/oats)");
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: async (text: string) => void (state.onyxCopied = text) },
+    });
+  });
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("tab", { name: "Plain text" }).click();
+  const expected = "Grocery list\n\n- Fresh bread\n- Oats (https://example.com/oats)";
+  await expect(page.getByLabel("Plain text")).toHaveText(expected);
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("button", { name: "Copy" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toBe(expected);
+  await expect(page.getByText("Copied this note as plain text.")).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  expect((await download).suggestedFilename()).toBe("grocery-list.txt");
+});
+
+test("shows the formatted note in the output pane, copies it as rich text and downloads RTF", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill("# Meeting notes\n\nDecided on **Friday**.");
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: Record<string, string> };
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        write: async (items: ClipboardItem[]) => {
+          const copied: Record<string, string> = {};
+          for (const type of items[0]!.types) {
+            copied[type] = await (await items[0]!.getType(type)).text();
+          }
+          state.onyxCopied = copied;
+        },
+      },
+    });
+  });
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("tab", { name: "Rich text" }).click();
+  const preview = page.getByLabel("Rich text");
+  await expect(preview.locator("h1")).toHaveText("Meeting notes");
+  await expect(preview.locator("strong")).toHaveText("Friday");
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("button", { name: "Copy" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as typeof window & { onyxCopied?: Record<string, string> }).onyxCopied,
+      ),
+    )
+    .toEqual({
+      "text/html": expect.stringContaining("<strong>Friday</strong>"),
+      "text/plain": "Meeting notes\n\nDecided on Friday.",
+    });
+
+  const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  expect((await download).suggestedFilename()).toBe("meeting-notes.rtf");
+});
+
+test("shows the generated HTML in the output pane, copies and downloads it", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill("# Release notes\n\nShipped **today**.");
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: async (text: string) => void (state.onyxCopied = text) },
+    });
+  });
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("tab", { name: "HTML" }).click();
+  const html = page.locator(".output-code");
+  await expect(html).toContainText('<h1 id="user-content-release-notes">');
+  await expect(html).toContainText("<strong>");
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("button", { name: "Copy" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toContain("<strong>today</strong>");
+  await expect(page.getByText("Copied this note as HTML.")).toBeVisible();
+
+  const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
+  await page.getByRole("button", { name: "Download" }).click();
+  expect((await download).suggestedFilename()).toBe("release-notes.html");
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("tab", { name: "Markdown" }).click();
+  await expect(markdown).toHaveValue(/Release notes/);
+});
+
+test("previews the printed page and prints it from the output pane", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill("# Field report\n\nEverything is in order.");
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxPrinted?: boolean };
+    window.print = () => {
+      state.onyxPrinted = true;
+    };
+  });
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("tab", { name: "PDF" }).click();
+  const sheet = page.locator(".pdf-sheet");
+  await expect(sheet.locator("h1")).toHaveText("Field report");
+  await expect(page.getByRole("button", { name: "Copy" })).toBeDisabled();
+
+  await openOutputSwitcher(page);
+
+  await page.getByRole("button", { name: "Save as PDF" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as typeof window & { onyxPrinted?: boolean }).onyxPrinted),
+    )
+    .toBe(true);
 });
 
 test("customizes and persists keyboard shortcuts", async ({ page }) => {
@@ -362,8 +729,14 @@ test("customizes and persists keyboard shortcuts", async ({ page }) => {
   await page.getByRole("button", { name: "Change Focus search shortcut" }).click();
   await page.keyboard.press("ControlOrMeta+Shift+Y");
   const shortcut = page.getByRole("button", { name: "Change Focus search shortcut" });
-  await expect(shortcut.locator("kbd")).toHaveText(["Ctrl", "Shift", "Y"]);
-  await expect(shortcut.locator(".shortcut-separator")).toHaveText(["+", "+"]);
+  const isMac = await page.evaluate(() => /Mac|iPhone|iPad|iPod/i.test(navigator.platform));
+  if (isMac) {
+    await expect(shortcut.locator("kbd")).toHaveText(["⌘", "⇧", "Y"]);
+    await expect(shortcut.locator(".shortcut-separator")).toHaveCount(0);
+  } else {
+    await expect(shortcut.locator("kbd")).toHaveText(["Ctrl", "Shift", "Y"]);
+    await expect(shortcut.locator(".shortcut-separator")).toHaveText(["+", "+"]);
+  }
   await page.getByRole("button", { name: "Close settings" }).click();
 
   await page.keyboard.press("ControlOrMeta+Shift+Y");
@@ -503,6 +876,9 @@ test("imports a Markdown folder and exports its structure and attachments as ZIP
 }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.getByRole("button", { name: "Turn on read-only" }).click();
+  await page.getByRole("tab", { name: "Files" }).click();
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Import & export", exact: true }).click();
@@ -675,6 +1051,8 @@ test("restores a selected GitHub commit into the local vault", async ({ page }) 
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "Markdown editor" });
   await expect(editor).toBeEnabled();
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.getByRole("button", { name: "Turn on read-only" }).click();
   await blockNextVaultWrite(page);
   await editor.fill("# Unsynced restore draft");
   await page.keyboard.press("ControlOrMeta+S");

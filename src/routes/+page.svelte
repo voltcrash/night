@@ -39,6 +39,7 @@
 		primaryModifier={page.primaryModifier}
 		renderedPaneVisible={page.renderedPaneVisible}
 		renderedReadOnly={page.renderedReadOnly}
+		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		wordCount={page.wordCount}
 		readingMinutes={page.readingMinutes}
 		contentWidth={page.contentWidth}
@@ -56,17 +57,26 @@
 		onMoveNoteFocus={page.moveNoteFocus}
 		onSelectNote={(id) => void page.selectNote(id)}
 		onChangePage={page.changeNotePage}
-		onInsertSyntax={page.insertSyntax}
-		onPrefixLine={page.prefixLine}
+		onInsertSyntax={(before, after, placeholder) => void page.insertSyntax(before, after, placeholder)}
+		onPrefixLine={(prefix) => void page.prefixLine(prefix)}
 		onToggleRenderedReadOnly={page.toggleRenderedReadOnly}
+		onToggleInlinePreview={page.toggleInlinePreview}
 		onContentWidthChange={page.setContentWidth}
 	/>
 
 	<MarkdownWorkspace
 		storageNotice={page.storageNotice}
 		storageError={page.storageError}
-		sourcePaneVisible={page.sourcePaneVisible}
+		outputPaneVisible={page.outputPaneVisible}
 		renderedPaneVisible={page.renderedPaneVisible}
+		paneLayout={page.paneLayout}
+		paneOrder={page.paneOrder}
+		outputView={page.outputView}
+		plainText={page.plainText}
+		plainTextBlocks={page.plainTextBlocks}
+		htmlSource={page.htmlSource}
+		htmlSourceBlocks={page.htmlSourceBlocks}
+		renderedBlockLines={page.renderedBlockLines}
 		renderedReadOnly={page.renderedReadOnly}
 		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		markdown={page.markdown}
@@ -86,10 +96,14 @@
 		onToggleSidebar={page.toggleSidebar}
 		splitRatio={page.splitRatio}
 		contentWidth={page.contentWidth}
-		onToggleSourcePane={page.toggleSourcePane}
+		onToggleOutputPane={page.toggleOutputPane}
+		onOutputViewChange={page.setOutputView}
+		onCopy={() => void page.copyOutput()}
+		onDownload={page.downloadOutput}
 		onToggleRenderedPane={page.toggleRenderedPane}
 		onResize={page.setSplitRatio}
 		onResizeEnd={page.saveSplitRatio}
+		onPlacePane={page.placePane}
 		onReload={() => location.reload()}
 		onMarkdownChange={page.updateMarkdown}
 		onSourceFocus={page.focusSourceEditor}
@@ -104,6 +118,8 @@
 		liveLineKind={page.liveLineKind}
 	/>
 </div>
+
+<div class="print-document paper-surface" aria-hidden="true"><article class="prose">{@html page.renderedMarkdown}</article></div>
 
 <StatusNotices
 	backupMessage={page.backupMessage}
@@ -138,14 +154,12 @@
 		resolvedTheme={page.resolvedTheme}
 		colorTheme={page.colorTheme}
 		fonts={page.fonts}
-		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		shortcuts={page.shortcuts}
 		primaryModifier={page.primaryModifier}
 		onThemeChange={page.setTheme}
 		onColorThemeChange={page.setColorTheme}
 		onFontChange={page.setFont}
 		onResetFonts={page.resetFonts}
-		onInlinePreviewBehaviorChange={page.setInlinePreviewBehavior}
 		onShortcutChange={page.setShortcut}
 		onResetShortcuts={page.resetShortcuts}
 		bind:section={page.settingsSection}

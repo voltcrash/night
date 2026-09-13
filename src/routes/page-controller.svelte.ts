@@ -1,5 +1,9 @@
 import {
+  ArrowLeftRight,
   CloudDownload,
+  Code2,
+  Columns2,
+  Copy,
   CloudUpload,
   Download,
   FileArchive,
@@ -11,24 +15,37 @@ import {
   Keyboard,
   Monitor,
   Moon,
+  Pilcrow,
   PanelLeft,
   PanelLeftClose,
   Lock,
   PanelRightClose,
+  Printer,
+  Rows2,
   Save,
   Search,
   Settings,
   Sun,
+  Type,
 } from "@lucide/svelte";
 import type {
   BackupState,
   GithubState,
+  PaneEdge,
+  PaneLayout,
+  PaneOrder,
   RestoreState,
   SaveState,
   TransferState,
 } from "$lib/components/app-types";
+import { isOutputView, type OutputView } from "$lib/components/output-views";
 import type { InlinePreviewBehavior, SettingsSection } from "$lib/components/settings-types";
-import { renderMarkdown, resolveLocalAttachmentUrl, type LocalAttachmentUrl } from "$lib/markdown";
+import {
+  renderMarkdown,
+  renderMarkdownBlocks,
+  resolveLocalAttachmentUrl,
+  type LocalAttachmentUrl,
+} from "$lib/markdown";
 import {
   applyColorTheme,
   applyFontChoices,
@@ -36,6 +53,7 @@ import {
   backupVaultToGithub,
   browserStorageWarnings,
   createMarkdownExport,
+  createHtmlDocument,
   createMarkdownZip,
   createPrivateGithubRepository,
   createVaultDescriptor,
@@ -49,8 +67,16 @@ import {
   GithubRequestError,
   importMarkdownFiles,
   listGithubBackupCommits,
+  formatHtmlBlocks,
+  formatHtmlSource,
+  HTML_SOURCE_SEPARATOR,
+  joinTextBlocks,
+  PLAIN_TEXT_SEPARATOR,
+  plainTextBlocks as notePlainTextBlocks,
+  markdownToRtf,
   nextThemePreference,
   normalizeVaultName,
+  outputFileName,
   persistenceDeniedMessage,
   readColorTheme,
   readFontChoices,
@@ -139,9 +165,12 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   let notePage = $state(0);
   let searchQuery = $state("");
   let singlePaneMode = $state(false);
-  let sourcePaneVisible = $state(true);
+  let outputPaneVisible = $state(true);
   let renderedPaneVisible = $state(true);
-  let renderedReadOnly = $state(true);
+  let renderedReadOnly = $state(false);
+  let outputView = $state<OutputView>("markdown");
+  let paneLayout = $state<PaneLayout>("columns");
+  let paneOrder = $state<PaneOrder>("rendered-first");
   let splitRatio = $state(50);
   let contentWidth = $state(DEFAULT_CONTENT_WIDTH);
   let editingSurface: "source" | "rendered" = "source";
@@ -211,7 +240,16 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   );
   const wordCount = $derived(markdown.trim() ? markdown.trim().split(/\s+/).length : 0);
   const readingMinutes = $derived(Math.max(1, Math.ceil(wordCount / 220)));
-  const renderedMarkdown = $derived(renderMarkdown(previewMarkdown, resolveAttachmentUrl));
+  const renderedBlocks = $derived(renderMarkdownBlocks(previewMarkdown, resolveAttachmentUrl));
+  const renderedMarkdown = $derived(renderedBlocks.map((block) => block.html).join(""));
+  const renderedBlockLines = $derived(
+    renderedBlocks.filter((block) => block.element).map((block) => block.lines),
+  );
+  const plainTextBlocks = $derived(notePlainTextBlocks(markdown));
+  const plainText = $derived(joinTextBlocks(plainTextBlocks, PLAIN_TEXT_SEPARATOR));
+  const htmlSourceBlocks = $derived(formatHtmlBlocks(renderedBlocks));
+  const htmlSource = $derived(joinTextBlocks(htmlSourceBlocks, HTML_SOURCE_SEPARATOR));
+  const noteTitle = $derived(titleFromMarkdown(markdown));
   const markdownLines = $derived(markdown.split("\n"));
   const liveCodeLines = $derived.by(() => {
     let fence = "";
@@ -229,6 +267,9 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     results.slice(notePage * NOTE_PAGE_SIZE, (notePage + 1) * NOTE_PAGE_SIZE),
   );
   const hasContent = $derived(markdown.trim().length > 0);
+  // Narrow viewports show one pane at a time, where neither arrangement is visible.
+  const effectivePaneLayout = $derived<PaneLayout>(singlePaneMode ? "columns" : paneLayout);
+
   const paletteItems = $derived([
     ...paletteNotes.map((note) => ({
       id: `note-${note.id}`,
@@ -269,13 +310,13 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       run: () => focusSearch(),
     },
     {
-      id: "toggle-source-pane",
+      id: "toggle-output-pane",
       group: "View",
-      label: sourcePaneVisible ? "Hide Markdown pane" : "Show Markdown pane",
+      label: outputPaneVisible ? "Hide output pane" : "Show output pane",
       icon: PanelLeftClose,
-      keywords: "write markdown left pane",
-      disabled: !singlePaneMode && sourcePaneVisible && !renderedPaneVisible,
-      run: () => toggleSourcePane(),
+      keywords: "write markdown source output left pane",
+      disabled: !singlePaneMode && outputPaneVisible && !renderedPaneVisible,
+      run: () => toggleOutputPane(),
     },
     {
       id: "toggle-rendered-pane",
@@ -284,8 +325,26 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       shortcut: shortcutLabel("togglePreview"),
       icon: PanelRightClose,
       keywords: "page preview right pane",
-      disabled: !singlePaneMode && renderedPaneVisible && !sourcePaneVisible,
+      disabled: !singlePaneMode && renderedPaneVisible && !outputPaneVisible,
       run: () => toggleRenderedPane(),
+    },
+    {
+      id: "swap-panes",
+      group: "View",
+      label: "Swap the pane positions",
+      icon: ArrowLeftRight,
+      keywords: "move switch sides order panes",
+      disabled: singlePaneMode,
+      run: () => swapPanes(),
+    },
+    {
+      id: "toggle-pane-layout",
+      group: "View",
+      label: effectivePaneLayout === "rows" ? "Place the panes side by side" : "Stack the panes",
+      icon: effectivePaneLayout === "rows" ? Columns2 : Rows2,
+      keywords: "split horizontal vertical stack columns rows layout",
+      disabled: singlePaneMode,
+      run: () => togglePaneLayout(),
     },
     {
       id: "toggle-read-only",
@@ -373,6 +432,87 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       icon: FolderOutput,
       keywords: "save files write",
       run: () => void exportFolder(),
+    },
+    {
+      id: "copy-markdown",
+      group: "Transfer",
+      label: "Copy this note as Markdown",
+      icon: Copy,
+      keywords: "clipboard markdown md source",
+      disabled: !hasContent,
+      run: () => void copyMarkdown(),
+    },
+    {
+      id: "download-markdown",
+      group: "Transfer",
+      label: "Download this note as Markdown",
+      icon: FileText,
+      keywords: "export markdown md save",
+      disabled: !hasContent,
+      run: () => downloadMarkdown(),
+    },
+    {
+      id: "copy-text",
+      group: "Transfer",
+      label: "Copy this note as plain text",
+      icon: Copy,
+      keywords: "clipboard plain text txt",
+      disabled: !hasContent,
+      run: () => void copyText(),
+    },
+    {
+      id: "download-text",
+      group: "Transfer",
+      label: "Download this note as plain text",
+      icon: Type,
+      keywords: "export plain text txt save",
+      disabled: !hasContent,
+      run: () => downloadText(),
+    },
+    {
+      id: "copy-rich-text",
+      group: "Transfer",
+      label: "Copy this note as rich text",
+      icon: Copy,
+      keywords: "clipboard formatted rich text document email paste",
+      disabled: !hasContent,
+      run: () => void copyRichText(),
+    },
+    {
+      id: "download-rtf",
+      group: "Transfer",
+      label: "Download this note as rich text",
+      icon: Pilcrow,
+      keywords: "export rtf rich text word document save",
+      disabled: !hasContent,
+      run: () => downloadRtf(),
+    },
+    {
+      id: "copy-html",
+      group: "Transfer",
+      label: "Copy this note as HTML",
+      icon: Copy,
+      keywords: "clipboard html web source",
+      disabled: !hasContent,
+      run: () => void copyHtml(),
+    },
+    {
+      id: "download-html",
+      group: "Transfer",
+      label: "Download this note as HTML",
+      icon: Code2,
+      keywords: "export html web page save",
+      disabled: !hasContent,
+      run: () => downloadHtml(),
+    },
+    {
+      id: "save-pdf",
+      group: "Transfer",
+      label: "Save this note as a PDF",
+      icon: Printer,
+      keywords: "print export pdf paper",
+      disabled: !hasContent,
+      run: () => savePdf(),
     },
     {
       id: "export-zip",
@@ -1075,6 +1215,115 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     }
   }
 
+  function downloadBlob(blob: Blob, name: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  // Browsers save PDFs through their own print dialog, which the print stylesheet feeds.
+  function savePdf(): void {
+    window.print();
+  }
+
+  async function copyMarkdown(): Promise<void> {
+    await copyToClipboard(() => navigator.clipboard.writeText(markdown), "Markdown");
+  }
+
+  function downloadMarkdown(): void {
+    downloadBlob(
+      new Blob([markdown.endsWith("\n") ? markdown : `${markdown}\n`], { type: "text/markdown" }),
+      outputFileName(noteTitle, "md"),
+    );
+  }
+
+  async function copyText(): Promise<void> {
+    await copyToClipboard(() => navigator.clipboard.writeText(plainText), "plain text");
+  }
+
+  function downloadText(): void {
+    downloadBlob(
+      new Blob([`${plainText}\n`], { type: "text/plain" }),
+      outputFileName(noteTitle, "txt"),
+    );
+  }
+
+  async function copyRichText(): Promise<void> {
+    await copyToClipboard(
+      () =>
+        navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([exportedHtml()], { type: "text/html" }),
+            "text/plain": new Blob([plainText], { type: "text/plain" }),
+          }),
+        ]),
+      "rich text",
+    );
+  }
+
+  function downloadRtf(): void {
+    downloadBlob(
+      new Blob([markdownToRtf(markdown)], { type: "application/rtf" }),
+      outputFileName(noteTitle, "rtf"),
+    );
+  }
+
+  // Exports keep the note's own attachment paths, because in-app blob URLs die with the tab.
+  function exportedHtml(): string {
+    return renderMarkdown(markdown, undefined, { remoteImages: "allow" });
+  }
+
+  async function copyToClipboard(write: () => Promise<void>, format: string): Promise<void> {
+    if (transferState === "working") return;
+    try {
+      await write();
+      transferState = "idle";
+      transferMessage = `Copied this note as ${format}.`;
+    } catch {
+      transferState = "error";
+      transferMessage = "The browser did not allow copying to the clipboard.";
+    }
+  }
+
+  async function copyHtml(): Promise<void> {
+    await copyToClipboard(
+      () => navigator.clipboard.writeText(formatHtmlSource(exportedHtml())),
+      "HTML",
+    );
+  }
+
+  function downloadHtml(): void {
+    const body = formatHtmlSource(exportedHtml());
+    const html = createHtmlDocument({ title: noteTitle, body });
+    downloadBlob(new Blob([html], { type: "text/html" }), outputFileName(noteTitle, "html"));
+  }
+
+  // The PDF view has nothing to copy, so it has no copy handler.
+  const outputCopy: Partial<Record<OutputView, () => Promise<void>>> = {
+    markdown: copyMarkdown,
+    text: copyText,
+    "rich-text": copyRichText,
+    html: copyHtml,
+  };
+  const outputDownload: Record<OutputView, () => void> = {
+    markdown: downloadMarkdown,
+    text: downloadText,
+    "rich-text": downloadRtf,
+    html: downloadHtml,
+    pdf: savePdf,
+  };
+
+  async function copyOutput(): Promise<void> {
+    await outputCopy[outputView]?.();
+  }
+
+  function downloadOutput(): void {
+    outputDownload[outputView]();
+  }
+
   async function exportZip(): Promise<void> {
     if (!vault || transferState === "working") return;
     transferState = "working";
@@ -1087,12 +1336,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     try {
       const files = await createMarkdownExport(vault);
       const archive = await createMarkdownZip(files);
-      const url = URL.createObjectURL(archive);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `onyx-markdown-${new Date().toISOString().slice(0, 10)}.zip`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      downloadBlob(archive, `onyx-markdown-${new Date().toISOString().slice(0, 10)}.zip`);
       transferState = "idle";
       transferMessage = `Exported ${files.length} ${files.length === 1 ? "file" : "files"} to ZIP.`;
     } catch (error) {
@@ -1250,35 +1494,69 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   // A single-pane viewport switches views instead of splitting, and leaves the stored split alone.
   function showOnlyPane(pane: "source" | "rendered"): void {
-    sourcePaneVisible = pane === "source";
+    outputPaneVisible = pane === "source";
     renderedPaneVisible = pane === "rendered";
     editingSurface = pane === "source" || renderedReadOnly ? "source" : "rendered";
   }
 
+  function swapPanes(): void {
+    if (singlePaneMode) return;
+    paneOrder = paneOrder === "source-first" ? "rendered-first" : "source-first";
+    // The panes trade places, so the stored split has to follow them to keep their sizes.
+    splitRatio = clampSplitRatio(100 - splitRatio);
+    writeLocalStorage("onyx:pane-order", paneOrder);
+    saveSplitRatio();
+  }
+
+  function setOutputView(view: OutputView): void {
+    outputView = view;
+    writeLocalStorage("onyx:output-view", view);
+  }
+
+  function togglePaneLayout(): void {
+    if (singlePaneMode) return;
+    paneLayout = paneLayout === "columns" ? "rows" : "columns";
+    writeLocalStorage("onyx:pane-layout", paneLayout);
+  }
+
+  function placePane(pane: "output" | "rendered", edge: PaneEdge): void {
+    if (singlePaneMode) return;
+    const layout: PaneLayout = edge === "left" || edge === "right" ? "columns" : "rows";
+    const leads = edge === "left" || edge === "top";
+    const order: PaneOrder = (pane === "rendered") === leads ? "rendered-first" : "source-first";
+    if (order !== paneOrder) swapPanes();
+    if (layout !== paneLayout) togglePaneLayout();
+  }
+
   function applyPanePreferences(): void {
-    const storedSourcePane = readLocalStorage("onyx:source-pane-visible");
+    const storedOutputView = readLocalStorage("onyx:output-view");
+    outputView = isOutputView(storedOutputView) ? storedOutputView : "markdown";
+    paneLayout = readLocalStorage("onyx:pane-layout") === "rows" ? "rows" : "columns";
+    paneOrder =
+      readLocalStorage("onyx:pane-order") === "source-first" ? "source-first" : "rendered-first";
+    const storedOutputPane = readLocalStorage("onyx:output-pane-visible");
     const storedRenderedPane = readLocalStorage("onyx:rendered-pane-visible");
     const storedReadOnly = readLocalStorage("onyx:rendered-read-only");
-    renderedReadOnly = storedReadOnly ? storedReadOnly !== "false" : !singlePaneMode;
+    renderedReadOnly = storedReadOnly === "true";
     if (singlePaneMode) {
       showOnlyPane(storedRenderedPane === "false" ? "source" : "rendered");
       return;
     }
-    sourcePaneVisible = storedSourcePane !== "false";
+    outputPaneVisible = storedOutputPane !== "false";
     renderedPaneVisible = storedRenderedPane !== "false";
-    if (!sourcePaneVisible && !renderedPaneVisible) sourcePaneVisible = true;
-    if (!sourcePaneVisible && !renderedReadOnly) editingSurface = "rendered";
+    if (!outputPaneVisible && !renderedPaneVisible) outputPaneVisible = true;
+    if (!outputPaneVisible && !renderedReadOnly) editingSurface = "rendered";
   }
 
-  function toggleSourcePane(): void {
+  function toggleOutputPane(): void {
     if (singlePaneMode) {
-      showOnlyPane(sourcePaneVisible ? "rendered" : "source");
+      showOnlyPane(outputPaneVisible ? "rendered" : "source");
       return;
     }
-    if (sourcePaneVisible && !renderedPaneVisible) return;
-    sourcePaneVisible = !sourcePaneVisible;
-    writeLocalStorage("onyx:source-pane-visible", String(sourcePaneVisible));
-    if (!sourcePaneVisible && renderedPaneVisible && !renderedReadOnly) editingSurface = "rendered";
+    if (outputPaneVisible && !renderedPaneVisible) return;
+    outputPaneVisible = !outputPaneVisible;
+    writeLocalStorage("onyx:output-pane-visible", String(outputPaneVisible));
+    if (!outputPaneVisible && renderedPaneVisible && !renderedReadOnly) editingSurface = "rendered";
   }
 
   function toggleRenderedPane(): void {
@@ -1286,10 +1564,10 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       showOnlyPane(renderedPaneVisible ? "source" : "rendered");
       return;
     }
-    if (renderedPaneVisible && !sourcePaneVisible) return;
+    if (renderedPaneVisible && !outputPaneVisible) return;
     renderedPaneVisible = !renderedPaneVisible;
     writeLocalStorage("onyx:rendered-pane-visible", String(renderedPaneVisible));
-    if (!renderedPaneVisible && sourcePaneVisible) editingSurface = "source";
+    if (!renderedPaneVisible && outputPaneVisible) editingSurface = "source";
   }
 
   function toggleRenderedReadOnly(): void {
@@ -1339,7 +1617,9 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     applyFontChoices(fonts);
   }
 
-  function setInlinePreviewBehavior(behavior: InlinePreviewBehavior): void {
+  function toggleInlinePreview(): void {
+    const behavior: InlinePreviewBehavior =
+      inlinePreviewBehavior === "rendered" ? "source-line" : "rendered";
     inlinePreviewBehavior = behavior;
     writeLocalStorage("onyx:inline-preview-behavior", behavior);
     if (renderedPaneVisible && !renderedReadOnly && editingSurface === "rendered") {
@@ -1542,11 +1822,20 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     return (
       renderedPaneVisible &&
       !renderedReadOnly &&
-      (editingSurface === "rendered" || !sourcePaneVisible)
+      (editingSurface === "rendered" || !outputPaneVisible)
     );
   }
 
-  function insertSyntax(before: string, after = before, placeholder = "text"): void {
+  // Formatting edits the Markdown source, so another output view is switched back first.
+  async function ensureMarkdownView(): Promise<boolean> {
+    if (editor || isRenderedEditingActive()) return true;
+    setOutputView("markdown");
+    await tick();
+    return Boolean(editor);
+  }
+
+  async function insertSyntax(before: string, after = before, placeholder = "text"): Promise<void> {
+    if (!(await ensureMarkdownView())) return;
     if (isRenderedEditingActive() && inlinePreviewBehavior === "rendered") {
       const target = liveEditorContainer?.querySelector<HTMLElement>(
         `[data-live-line="${liveLine}"]`,
@@ -1597,7 +1886,8 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     });
   }
 
-  function prefixLine(prefix: string): void {
+  async function prefixLine(prefix: string): Promise<void> {
+    if (!(await ensureMarkdownView())) return;
     if (isRenderedEditingActive() && inlinePreviewBehavior === "rendered") {
       const target = liveEditorContainer?.querySelector<HTMLElement>(
         `[data-live-line="${liveLine}"]`,
@@ -1650,8 +1940,8 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     else if (action === "searchNotes" || action === "focusSearch") focusSearch();
     else if (action === "cycleTheme") setTheme(nextThemePreference(theme));
     else if (action === "toggleSidebar") toggleSidebar();
-    else if (action === "bold") insertSyntax("**", "**", "bold text");
-    else if (action === "italic") insertSyntax("_", "_", "italic text");
+    else if (action === "bold") void insertSyntax("**", "**", "bold text");
+    else if (action === "italic") void insertSyntax("_", "_", "italic text");
     else if (action === "togglePreview") toggleRenderedPane();
     else if (action === "openShortcuts") openSettings("shortcuts");
     else if (action === "closePanel") {
@@ -1998,14 +2288,26 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     get primaryModifier() {
       return primaryModifier;
     },
-    get sourcePaneVisible() {
-      return sourcePaneVisible;
+    get outputPaneVisible() {
+      return outputPaneVisible;
     },
     get renderedPaneVisible() {
       return renderedPaneVisible;
     },
     get renderedReadOnly() {
       return renderedReadOnly;
+    },
+    get outputView() {
+      return outputView;
+    },
+    get paneLayout() {
+      return effectivePaneLayout;
+    },
+    get paneOrder() {
+      return paneOrder;
+    },
+    get singlePaneMode() {
+      return singlePaneMode;
     },
     get splitRatio() {
       return splitRatio;
@@ -2036,6 +2338,21 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     },
     get renderedMarkdown() {
       return renderedMarkdown;
+    },
+    get renderedBlockLines() {
+      return renderedBlockLines;
+    },
+    get plainTextBlocks() {
+      return plainTextBlocks;
+    },
+    get htmlSourceBlocks() {
+      return htmlSourceBlocks;
+    },
+    get plainText() {
+      return plainText;
+    },
+    get htmlSource() {
+      return htmlSource;
     },
     get paletteItems() {
       return paletteItems;
@@ -2124,8 +2441,14 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     setSplitRatio,
     saveSplitRatio,
     setContentWidth,
-    toggleSourcePane,
+    toggleOutputPane,
     toggleRenderedPane,
+    swapPanes,
+    togglePaneLayout,
+    placePane,
+    setOutputView,
+    copyOutput,
+    downloadOutput,
     toggleRenderedReadOnly,
     focusSourceEditor,
     focusLiveLine,
@@ -2142,7 +2465,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     setColorTheme,
     setFont,
     resetFonts,
-    setInlinePreviewBehavior,
+    toggleInlinePreview,
     setShortcut,
     resetShortcuts,
     createBackupRepository,
