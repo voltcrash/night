@@ -39,8 +39,6 @@
 		primaryModifier={page.primaryModifier}
 		renderedPaneVisible={page.renderedPaneVisible}
 		renderedReadOnly={page.renderedReadOnly}
-		paneLayout={page.paneLayout}
-		singlePaneMode={page.singlePaneMode}
 		wordCount={page.wordCount}
 		readingMinutes={page.readingMinutes}
 		contentWidth={page.contentWidth}
@@ -61,8 +59,6 @@
 		onInsertSyntax={(before, after, placeholder) => void page.insertSyntax(before, after, placeholder)}
 		onPrefixLine={(prefix) => void page.prefixLine(prefix)}
 		onToggleRenderedReadOnly={page.toggleRenderedReadOnly}
-		onSwapPanes={page.swapPanes}
-		onTogglePaneLayout={page.togglePaneLayout}
 		onContentWidthChange={page.setContentWidth}
 	/>
 
@@ -106,6 +102,7 @@
 		onToggleRenderedPane={page.toggleRenderedPane}
 		onResize={page.setSplitRatio}
 		onResizeEnd={page.saveSplitRatio}
+		onPlacePane={page.placePane}
 		onReload={() => location.reload()}
 		onMarkdownChange={page.updateMarkdown}
 		onSourceFocus={page.focusSourceEditor}

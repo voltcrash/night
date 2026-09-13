@@ -35,7 +35,8 @@
     grid-column: 1;
   }
   /* One pane at a time, so nothing is resizable and the grab strip would only eat edge swipes. */
-  .pane-resize {
+  .pane-resize,
+  .pane-grip {
     display: none;
   }
   /* Touch has no hover, so the pane handles stay open and sit inside the edge gesture zone. */

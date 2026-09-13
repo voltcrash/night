@@ -350,6 +350,49 @@ test("keeps both panes synchronized and lets each pane be tucked away", async ({
   await expect(page.locator(".preview-pane")).toBeVisible();
 });
 
+test("moves a pane by dragging its top edge or with the arrow keys", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  const shell = page.locator(".editor-shell");
+  const panesBox = await shell.boundingBox();
+  if (!panesBox) throw new Error("The panes are not laid out");
+
+  const grip = await page.getByRole("button", { name: "Move the page pane" }).boundingBox();
+  if (!grip) throw new Error("The page pane grip is not laid out");
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(panesBox.x + panesBox.width / 2, panesBox.y + panesBox.height - 20, {
+    steps: 10,
+  });
+  await expect(page.locator(".pane-drop-slot")).toBeVisible();
+  await page.mouse.up();
+  await expect(shell).toHaveClass(/panes-stacked/);
+  await expect(shell).not.toHaveClass(/panes-swapped/);
+  await expect(page.locator(".pane-drop-slot")).toHaveCount(0);
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((animation) => animation.finished)),
+  );
+
+  const toolbar = await page.locator(".output-toolbar").boundingBox();
+  if (!toolbar) throw new Error("The output toolbar is not laid out");
+  await page.mouse.move(toolbar.x + toolbar.width - 200, toolbar.y + toolbar.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(panesBox.x + panesBox.width - 20, panesBox.y + panesBox.height / 2, {
+    steps: 10,
+  });
+  await page.mouse.up();
+  await expect(shell).not.toHaveClass(/panes-stacked/);
+  await expect(shell).toHaveClass(/panes-swapped/);
+
+  await page.getByRole("button", { name: "Move the page pane" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(shell).not.toHaveClass(/panes-swapped/);
+
+  await page.getByRole("tab", { name: "HTML" }).click();
+  await expect(page.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "true");
+  await expect(shell).not.toHaveClass(/panes-swapped/);
+});
+
 test("shows the note as plain text in the output pane, copies and downloads it", async ({
   page,
 }) => {

@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { Copy, Download, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CloudOff, HardDrive, PanelLeft, PencilLine, X } from '@lucide/svelte';
 	import { formatShortcut, type KeyboardShortcuts, type PrimaryModifier } from '$lib';
 	import type { InlinePreviewBehavior } from './settings-dialog.svelte';
-	import type { PaneLayout, PaneOrder, SaveState, TransferState } from './app-types';
+	import type { PaneEdge, PaneLayout, PaneOrder, SaveState, TransferState } from './app-types';
 	import { outputViews, type OutputView } from './output-views';
 
 	interface Props {
@@ -45,6 +46,7 @@
 		onToggleRenderedPane: () => void;
 		onResize: (ratio: number) => void;
 		onResizeEnd: () => void;
+		onPlacePane: (pane: 'output' | 'rendered', edge: PaneEdge) => void;
 		onReload: () => void;
 		onMarkdownChange: (value: string) => void;
 		onSourceFocus: () => void;
@@ -63,7 +65,7 @@
 		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, htmlSource, renderedReadOnly, inlinePreviewBehavior, markdown, markdownLines, liveLine,
 		saveState, transferState, hasContent, renderedMarkdown, shortcuts, primaryModifier,
 		editor = $bindable(), liveEditor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
-		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopyText, onDownloadText, onCopyRichText, onDownloadRtf, onDownloadHtml, onSavePdf, onToggleRenderedPane, onResize, onResizeEnd, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
+		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopyText, onDownloadText, onCopyRichText, onDownloadRtf, onDownloadHtml, onSavePdf, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
 		onRenderedLineKeydown, onLiveLineChange, onLiveLineKeydown, onActivateLiveLine,
 		renderEditableLine, renderLiveLine, liveLineKind
 	}: Props = $props();
@@ -125,7 +127,109 @@
 		onResize(50);
 		onResizeEnd();
 	}
+
+	type Pane = 'output' | 'rendered';
+	const DRAG_THRESHOLD = 5;
+	const MOVE_EASING = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+	const edgeKeys: Record<string, PaneEdge> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'top', ArrowDown: 'bottom' };
+
+	let outputPaneElement = $state<HTMLElement>();
+	let renderedPaneElement = $state<HTMLElement>();
+	let drag = $state<{ pane: Pane; pointerId: number; startX: number; startY: number; dx: number; dy: number; originX: number; originY: number; scale: number; edge: PaneEdge; moving: boolean }>();
+
+	function paneEdge(pane: Pane): PaneEdge {
+		const leads = (pane === 'rendered') === swapped;
+		if (stacked) return leads ? 'top' : 'bottom';
+		return leads ? 'left' : 'right';
+	}
+
+	// The moved pane keeps its share of the space, so the preview matches where it settles.
+	let dropSlot = $derived.by(() => {
+		if (!drag?.moving) return undefined;
+		const size = paneEdge(drag.pane) === 'left' || paneEdge(drag.pane) === 'top' ? splitRatio : 100 - splitRatio;
+		const horizontal = drag.edge === 'left' || drag.edge === 'right';
+		return `--slot-left: ${drag.edge === 'right' ? 100 - size : 0}%; --slot-top: ${drag.edge === 'bottom' ? 100 - size : 0}%; --slot-width: ${horizontal ? size : 100}%; --slot-height: ${horizontal ? 100 : size}%`;
+	});
+
+	function nearestEdge(event: PointerEvent): PaneEdge {
+		const bounds = shell!.getBoundingClientRect();
+		const x = (event.clientX - bounds.left) / bounds.width;
+		const y = (event.clientY - bounds.top) / bounds.height;
+		const distances: [PaneEdge, number][] = [['left', x], ['right', 1 - x], ['top', y], ['bottom', 1 - y]];
+		return distances.reduce((nearest, candidate) => (candidate[1] < nearest[1] ? candidate : nearest))[0];
+	}
+
+	function startPaneDrag(event: PointerEvent, pane: Pane): void {
+		if (!bothPanesVisible || event.button !== 0 || drag) return;
+		// Only the bare toolbar and grip start a move, so the tabs and actions keep their clicks.
+		if ((event.target as HTMLElement).closest('button:not(.pane-grip)')) return;
+		event.preventDefault();
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		const bounds = (pane === 'output' ? outputPaneElement : renderedPaneElement)!.getBoundingClientRect();
+		// The pane shrinks around the grab point, so it stays under the pointer and uncovers the drop slots.
+		const scale = Math.min(0.7, 380 / bounds.width, 320 / bounds.height);
+		drag = { pane, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dx: 0, dy: 0, originX: event.clientX - bounds.left, originY: event.clientY - bounds.top, scale, edge: paneEdge(pane), moving: false };
+	}
+
+	function trackPaneDrag(event: PointerEvent): void {
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		drag.dx = event.clientX - drag.startX;
+		drag.dy = event.clientY - drag.startY;
+		if (!drag.moving && Math.hypot(drag.dx, drag.dy) < DRAG_THRESHOLD) return;
+		drag.moving = true;
+		drag.edge = nearestEdge(event);
+	}
+
+	function endPaneDrag(event: PointerEvent): void {
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		const { pane, edge, moving } = drag;
+		if (event.type === 'pointerup' && moving) void movePane(pane, edge);
+		else if (moving) void movePane(pane, paneEdge(pane));
+		else drag = undefined;
+	}
+
+	function cancelPaneDrag(event: KeyboardEvent): void {
+		if (event.key !== 'Escape' || !drag?.moving) return;
+		event.preventDefault();
+		void movePane(drag.pane, paneEdge(drag.pane));
+	}
+
+	function nudgePane(event: KeyboardEvent, pane: Pane): void {
+		const edge = edgeKeys[event.key];
+		if (!edge || !bothPanesVisible) return;
+		event.preventDefault();
+		void movePane(pane, edge);
+	}
+
+	// Each pane glides from where it was drawn to its new track instead of jumping there.
+	async function movePane(pane: Pane, edge: PaneEdge): Promise<void> {
+		const panes = [outputPaneElement, renderedPaneElement].filter((element): element is HTMLElement => Boolean(element));
+		const before = panes.map((element) => element.getBoundingClientRect());
+		const moved = pane === 'output' ? outputPaneElement : renderedPaneElement;
+		if (edge !== paneEdge(pane)) onPlacePane(pane, edge);
+		drag = undefined;
+		await tick();
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		panes.forEach((element, index) => {
+			const from = before[index];
+			const to = element.getBoundingClientRect();
+			if (Math.abs(from.left - to.left) < 1 && Math.abs(from.top - to.top) < 1 && Math.abs(from.width - to.width) < 1 && Math.abs(from.height - to.height) < 1) return;
+			// Clipping instead of scaling keeps the text laid out at its final size while the pane moves.
+			const clipRight = Math.max(0, to.width - from.width);
+			const clipBottom = Math.max(0, to.height - from.height);
+			element.animate(
+				[
+					{ transform: `translate(${from.left - to.left}px, ${from.top - to.top}px)`, clipPath: `inset(0 ${clipRight}px ${clipBottom}px 0 round 10px)`, zIndex: element === moved ? 8 : 7 },
+					{ transform: 'none', clipPath: 'inset(0 0 0 0 round 0)', zIndex: element === moved ? 8 : 7 }
+				],
+				{ duration: 300, easing: MOVE_EASING }
+			);
+		});
+		shell?.querySelector('.pane-divider')?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }], { duration: 300 });
+	}
 </script>
+
+<svelte:window onkeydown={cancelPaneDrag} />
 
 <main class="workspace">
 	<button class="collapsed-sidebar-toggle" aria-label="Show notes sidebar" title={`Show sidebar (${formatShortcut(shortcuts.toggleSidebar, primaryModifier)})`} onclick={onToggleSidebar}><PanelLeft size={19} /></button>
@@ -141,9 +245,10 @@
 		</div>
 	{/if}
 
-	<section bind:this={shell} class="editor-shell" class:output-hidden={!outputPaneVisible} class:rendered-hidden={!renderedPaneVisible} class:panes-stacked={stacked} class:panes-swapped={swapped} class:first-hidden={!firstPaneVisible} class:second-hidden={!secondPaneVisible} class:resizing style={`--split: ${splitRatio}%; --content-width: ${contentWidth}px`}>
-		<div class="output-pane">
-			<div class="output-toolbar">
+	<section bind:this={shell} class="editor-shell" class:output-hidden={!outputPaneVisible} class:rendered-hidden={!renderedPaneVisible} class:panes-stacked={stacked} class:panes-swapped={swapped} class:first-hidden={!firstPaneVisible} class:second-hidden={!secondPaneVisible} class:resizing class:pane-moving={drag?.moving} style={`--split: ${splitRatio}%; --content-width: ${contentWidth}px`}>
+		<div bind:this={outputPaneElement} class="output-pane" class:dragged={drag?.moving && drag.pane === 'output'} style={drag?.moving && drag.pane === 'output' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined}>
+			<button type="button" class="pane-grip" tabindex={bothPanesVisible ? 0 : -1} aria-label="Move the output pane" title="Drag to move this pane, or use the arrow keys" onpointerdown={(event) => startPaneDrag(event, 'output')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag} onkeydown={(event) => nudgePane(event, 'output')}></button>
+			<div class="output-toolbar" class:draggable={bothPanesVisible} role="presentation" onpointerdown={(event) => startPaneDrag(event, 'output')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag}>
 				<div class="output-views" role="tablist" aria-label="Output view">
 					{#each outputViews as view (view.id)}
 						<button role="tab" class:active={outputView === view.id} aria-selected={outputView === view.id} title={view.description} onclick={() => onOutputViewChange(view.id)}><view.icon size={14} /><span>{view.label}</span></button>
@@ -206,7 +311,10 @@
 				<button class="pane-handle pane-handle-end" title={label} aria-label={label} aria-expanded={secondPaneVisible} onclick={toggleSecondPane}><Icon size={15} /></button>
 			{/if}
 		</div>
-		<div class="preview-pane">
+		<div bind:this={renderedPaneElement} class="preview-pane" class:dragged={drag?.moving && drag.pane === 'rendered'} style={drag?.moving && drag.pane === 'rendered' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined}>
+			<div class="pane-grip-anchor">
+				<button type="button" class="pane-grip" tabindex={bothPanesVisible ? 0 : -1} aria-label="Move the page pane" title="Drag to move this pane, or use the arrow keys" onpointerdown={(event) => startPaneDrag(event, 'rendered')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag} onkeydown={(event) => nudgePane(event, 'rendered')}></button>
+			</div>
 			{#if renderedReadOnly}
 				{#if hasContent}
 					<article class="prose">{@html renderedMarkdown}</article>
@@ -227,5 +335,8 @@
 				</div>
 			{/if}
 		</div>
+		{#if dropSlot}
+			<div class="pane-drop-slot" style={dropSlot} aria-hidden="true"></div>
+		{/if}
 	</section>
 </main>

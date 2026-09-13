@@ -31,6 +31,7 @@ import {
 import type {
   BackupState,
   GithubState,
+  PaneEdge,
   PaneLayout,
   PaneOrder,
   RestoreState,
@@ -1435,6 +1436,15 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     writeLocalStorage("onyx:pane-layout", paneLayout);
   }
 
+  function placePane(pane: "output" | "rendered", edge: PaneEdge): void {
+    if (singlePaneMode) return;
+    const layout: PaneLayout = edge === "left" || edge === "right" ? "columns" : "rows";
+    const leads = edge === "left" || edge === "top";
+    const order: PaneOrder = (pane === "rendered") === leads ? "rendered-first" : "source-first";
+    if (order !== paneOrder) swapPanes();
+    if (layout !== paneLayout) togglePaneLayout();
+  }
+
   function applyPanePreferences(): void {
     const storedOutputView = readLocalStorage("onyx:output-view");
     outputView = isOutputView(storedOutputView) ? storedOutputView : "markdown";
@@ -2341,6 +2351,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     toggleRenderedPane,
     swapPanes,
     togglePaneLayout,
+    placePane,
     setOutputView,
     copyText,
     downloadText,

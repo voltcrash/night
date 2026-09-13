@@ -7,3 +7,4 @@ export type TransferState = "idle" | "working" | "error";
 // "columns" places the panes side by side; "rows" stacks them with a horizontal divider.
 export type PaneLayout = "columns" | "rows";
 export type PaneOrder = "source-first" | "rendered-first";
+export type PaneEdge = "left" | "right" | "top" | "bottom";

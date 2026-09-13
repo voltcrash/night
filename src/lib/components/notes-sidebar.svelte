@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ArrowLeftRight, Bold, Braces, Code2, Columns2, FileText, HardDrive, Heading2, Highlighter, Italic, Link, List, ListChecks, ListOrdered, LoaderCircle, Lock, LockOpen, LogOut, MessageSquareWarning, Minus, PanelLeftClose, Plus, Quote, Rows2, Search, Settings, Sigma, Strikethrough, Wrench, X } from '@lucide/svelte';
+	import { Bold, Braces, Code2, FileText, HardDrive, Heading2, Highlighter, Italic, Link, List, ListChecks, ListOrdered, LoaderCircle, Lock, LockOpen, LogOut, MessageSquareWarning, Minus, PanelLeftClose, Plus, Quote, Search, Settings, Sigma, Strikethrough, Wrench, X } from '@lucide/svelte';
 	import { formatShortcut, type GithubUser, type KeyboardShortcuts, type PrimaryModifier, type VaultDescriptor, type VaultSearchResult } from '$lib';
 	import GithubIcon from './github-icon.svelte';
 	import VaultSwitcher from './vault-switcher.svelte';
-	import type { GithubState, PaneLayout, SaveState, TransferState } from './app-types';
+	import type { GithubState, SaveState, TransferState } from './app-types';
 
 	interface Props {
 		vaults: VaultDescriptor[];
@@ -29,8 +29,6 @@
 		storageError: string;
 		renderedPaneVisible: boolean;
 		renderedReadOnly: boolean;
-		paneLayout: PaneLayout;
-		singlePaneMode: boolean;
 		wordCount: number;
 		readingMinutes: number;
 		contentWidth: number;
@@ -51,17 +49,15 @@
 		onInsertSyntax: (before: string, after?: string, placeholder?: string) => void;
 		onPrefixLine: (prefix: string) => void;
 		onToggleRenderedReadOnly: () => void;
-		onSwapPanes: () => void;
-		onTogglePaneLayout: () => void;
 		onContentWidthChange: (value: number) => void;
 	}
 
 	let {
 		vaults, activeVaultId, activeNoteId, results, visibleResults, searchQuery, notePage, notePageCount, saveState, notesLoaded, paletteOpen, settingsOpen,
-		isOnline, githubState, githubUser, githubMessage, transferState, storageError, shortcuts, primaryModifier, renderedPaneVisible, renderedReadOnly, paneLayout, singlePaneMode, wordCount, readingMinutes, contentWidth,
+		isOnline, githubState, githubUser, githubMessage, transferState, storageError, shortcuts, primaryModifier, renderedPaneVisible, renderedReadOnly, wordCount, readingMinutes, contentWidth,
 		searchInput = $bindable(), noteList = $bindable(), onToggleSidebar, onSelectVault, onCreateVault, onRenameVault, onCreateNote, onSearch,
 		onOpenPalette, onOpenSettings, onDisconnectGithub, onMoveNoteFocus, onSelectNote, onChangePage,
-		onInsertSyntax, onPrefixLine, onToggleRenderedReadOnly, onSwapPanes, onTogglePaneLayout, onContentWidthChange
+		onInsertSyntax, onPrefixLine, onToggleRenderedReadOnly, onContentWidthChange
 	}: Props = $props();
 
 	let sidebarView = $state<'files' | 'tools'>('files');
@@ -111,8 +107,6 @@
 				<h2>View</h2>
 				<div class="sidebar-view-options">
 					<button class:active={renderedReadOnly} aria-pressed={renderedReadOnly} disabled={!renderedPaneVisible} onclick={onToggleRenderedReadOnly} aria-label={renderedReadOnly ? 'Enable page editing' : 'Turn on read-only'}>{#if renderedReadOnly}<Lock size={16} />{:else}<LockOpen size={16} />{/if}<span>{renderedReadOnly ? 'Read only' : 'Editing'}</span></button>
-					<button disabled={singlePaneMode} onclick={onSwapPanes} aria-label="Swap the pane positions"><ArrowLeftRight size={16} /><span>Swap panes</span></button>
-					<button disabled={singlePaneMode} onclick={onTogglePaneLayout} aria-label={paneLayout === 'rows' ? 'Place the panes side by side' : 'Stack the panes'}>{#if paneLayout === 'rows'}<Columns2 size={16} />{:else}<Rows2 size={16} />{/if}<span>{paneLayout === 'rows' ? 'Stacked' : 'Side by side'}</span></button>
 					<label class="content-width-control">
 						<span><strong>Content width</strong><output>{contentWidth}px</output></span>
 						<input type="range" min="480" max="1200" step="20" value={contentWidth} aria-label="Content width" oninput={(event) => onContentWidthChange(Number(event.currentTarget.value))} />

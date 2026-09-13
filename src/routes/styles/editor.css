@@ -1,5 +1,6 @@
 .editor-shell {
   --split: 50%;
+  position: relative;
   --content-width: 700px;
   flex: 1;
   min-height: 0;
@@ -163,6 +164,125 @@
 }
 .pane-handle:hover {
   color: var(--ink);
+}
+/* The top edge of each pane is its grip: a thin strip that reveals a pill when pointed at. */
+.output-pane,
+.preview-pane {
+  transition: opacity 0.2s ease;
+}
+.output-pane {
+  position: relative;
+}
+.pane-grip-anchor {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 0;
+}
+.pane-grip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+.pane-grip::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 32px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line-hover);
+  opacity: 0;
+  translate: -50% -2px;
+  transition:
+    opacity 0.14s ease,
+    translate 0.14s ease,
+    width 0.14s ease;
+}
+.pane-grip:hover::after,
+.pane-grip:focus-visible::after,
+.output-pane:has(> .output-toolbar.draggable:hover) .pane-grip::after,
+.dragged .pane-grip::after {
+  opacity: 1;
+  translate: -50% 0;
+}
+.pane-grip:focus-visible {
+  outline: none;
+}
+.pane-grip:focus-visible::after,
+.dragged .pane-grip::after {
+  width: 48px;
+  background: var(--accent);
+}
+.output-toolbar.draggable {
+  cursor: grab;
+}
+.output-toolbar.draggable button {
+  cursor: pointer;
+}
+.editor-shell.pane-moving,
+.editor-shell.pane-moving * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+.output-pane.dragged,
+.preview-pane.dragged {
+  z-index: 9;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px var(--line-strong),
+    var(--shadow-lg);
+  scale: var(--lift-scale, 0.7);
+  pointer-events: none;
+  will-change: translate;
+  transition:
+    scale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-radius 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.output-pane.dragged {
+  overflow: hidden;
+}
+.pane-moving .output-pane:not(.dragged),
+.pane-moving .preview-pane:not(.dragged) {
+  opacity: 0.55;
+  transition: opacity 0.16s ease;
+}
+.pane-moving .pane-handle {
+  visibility: hidden;
+}
+/* Shows where the dragged pane will land; it glides between edges as the pointer crosses them. */
+.pane-drop-slot {
+  position: absolute;
+  top: calc(var(--slot-top) + 6px);
+  left: calc(var(--slot-left) + 6px);
+  z-index: 8;
+  width: calc(var(--slot-width) - 12px);
+  height: calc(var(--slot-height) - 12px);
+  border: 1.5px solid var(--accent-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  pointer-events: none;
+  animation: pane-slot-in 0.16s ease both;
+  transition:
+    top 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes pane-slot-in {
+  from {
+    opacity: 0;
+  }
 }
 .workspace > .collapsed-sidebar-toggle {
   position: absolute;
