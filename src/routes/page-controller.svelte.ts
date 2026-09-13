@@ -419,6 +419,24 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       run: () => void exportFolder(),
     },
     {
+      id: "copy-markdown",
+      group: "Transfer",
+      label: "Copy this note as Markdown",
+      icon: Copy,
+      keywords: "clipboard markdown md source",
+      disabled: !hasContent,
+      run: () => void copyMarkdown(),
+    },
+    {
+      id: "download-markdown",
+      group: "Transfer",
+      label: "Download this note as Markdown",
+      icon: FileText,
+      keywords: "export markdown md save",
+      disabled: !hasContent,
+      run: () => downloadMarkdown(),
+    },
+    {
       id: "copy-text",
       group: "Transfer",
       label: "Copy this note as plain text",
@@ -453,6 +471,15 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       keywords: "export rtf rich text word document save",
       disabled: !hasContent,
       run: () => downloadRtf(),
+    },
+    {
+      id: "copy-html",
+      group: "Transfer",
+      label: "Copy this note as HTML",
+      icon: Copy,
+      keywords: "clipboard html web source",
+      disabled: !hasContent,
+      run: () => void copyHtml(),
     },
     {
       id: "download-html",
@@ -1187,6 +1214,17 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     window.print();
   }
 
+  async function copyMarkdown(): Promise<void> {
+    await copyToClipboard(() => navigator.clipboard.writeText(markdown), "Markdown");
+  }
+
+  function downloadMarkdown(): void {
+    downloadBlob(
+      new Blob([markdown.endsWith("\n") ? markdown : `${markdown}\n`], { type: "text/markdown" }),
+      outputFileName(noteTitle, "md"),
+    );
+  }
+
   async function copyText(): Promise<void> {
     await copyToClipboard(() => navigator.clipboard.writeText(plainText), "plain text");
   }
@@ -1235,10 +1273,40 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     }
   }
 
+  async function copyHtml(): Promise<void> {
+    await copyToClipboard(
+      () => navigator.clipboard.writeText(formatHtmlSource(exportedHtml())),
+      "HTML",
+    );
+  }
+
   function downloadHtml(): void {
     const body = formatHtmlSource(exportedHtml());
     const html = createHtmlDocument({ title: noteTitle, body });
     downloadBlob(new Blob([html], { type: "text/html" }), outputFileName(noteTitle, "html"));
+  }
+
+  // The PDF view has nothing to copy, so it has no copy handler.
+  const outputCopy: Partial<Record<OutputView, () => Promise<void>>> = {
+    markdown: copyMarkdown,
+    text: copyText,
+    "rich-text": copyRichText,
+    html: copyHtml,
+  };
+  const outputDownload: Record<OutputView, () => void> = {
+    markdown: downloadMarkdown,
+    text: downloadText,
+    "rich-text": downloadRtf,
+    html: downloadHtml,
+    pdf: savePdf,
+  };
+
+  async function copyOutput(): Promise<void> {
+    await outputCopy[outputView]?.();
+  }
+
+  function downloadOutput(): void {
+    outputDownload[outputView]();
   }
 
   async function exportZip(): Promise<void> {
@@ -2355,12 +2423,8 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     togglePaneLayout,
     placePane,
     setOutputView,
-    copyText,
-    downloadText,
-    copyRichText,
-    downloadRtf,
-    downloadHtml,
-    savePdf,
+    copyOutput,
+    downloadOutput,
     toggleRenderedReadOnly,
     focusSourceEditor,
     focusLiveLine,

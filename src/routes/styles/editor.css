@@ -313,36 +313,31 @@
 }
 /*
  * The view switcher floats in the pane's top padding, so the note keeps the full height.
- * At rest it is only the current view's icon; hovering or focusing it unfolds the other views and actions.
+ * Every control stays in place for every view; ones that do not apply are dimmed instead of removed.
  */
 .output-switcher {
-  --switcher-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   position: absolute;
   top: 8px;
   right: 18px;
   z-index: 4;
   display: flex;
   align-items: center;
+  gap: 4px;
   padding: 2px;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: 10px;
-  transition:
-    background 0.18s ease 0.25s,
-    border-color 0.18s ease 0.25s,
-    box-shadow 0.18s ease 0.25s;
-}
-.output-switcher:hover,
-.output-switcher:has(:focus-visible) {
-  border-color: var(--line);
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(10px);
-  transition-delay: 0s;
 }
 .output-views,
 .output-actions {
   display: flex;
   align-items: center;
+}
+.output-actions {
+  padding-left: 4px;
+  border-left: 1px solid var(--line);
 }
 .output-views button,
 .output-action {
@@ -351,17 +346,15 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  overflow: hidden;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition:
-    width 0.22s var(--switcher-ease) 0.25s,
-    opacity 0.16s ease 0.25s,
     background 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    opacity 0.15s ease;
 }
 .output-views button span,
 .output-action span {
@@ -372,41 +365,9 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-/* Folded away, everything but the current view collapses to nothing. */
-.output-views button:not(.active),
-.output-action {
-  width: 0;
-  opacity: 0;
-}
 .output-views button.active {
-  color: var(--faint);
-}
-.output-pane:hover .output-views button.active {
-  color: var(--muted);
-}
-.output-actions {
-  margin-left: 0;
-  padding-left: 0;
-  border-left: 1px solid transparent;
-  transition:
-    margin-left 0.22s var(--switcher-ease) 0.25s,
-    padding-left 0.22s var(--switcher-ease) 0.25s,
-    border-color 0.16s ease 0.25s;
-}
-.output-switcher:is(:hover, :has(:focus-visible)) :is(.output-views button, .output-action) {
-  width: 28px;
-  opacity: 1;
-  transition-delay: 0s;
-}
-.output-switcher:is(:hover, :has(:focus-visible)) .output-views button.active {
   background: var(--subtle-strong);
   color: var(--ink);
-}
-.output-switcher:is(:hover, :has(:focus-visible)) .output-actions {
-  margin-left: 4px;
-  padding-left: 4px;
-  border-color: var(--line);
-  transition-delay: 0s;
 }
 .output-views button:hover,
 .output-action:hover:not(:disabled) {
@@ -420,23 +381,14 @@
 }
 .output-action:disabled {
   cursor: not-allowed;
-}
-.output-switcher:is(:hover, :has(:focus-visible)) .output-action:disabled {
-  opacity: 0.4;
-}
-@media (prefers-reduced-motion: reduce) {
-  .output-switcher,
-  .output-switcher *,
-  .output-actions {
-    transition-duration: 0s !important;
-  }
+  opacity: 0.35;
 }
 .output-code {
   flex: 1;
   min-height: 0;
   margin: 0;
   overflow: auto;
-  padding: 46px clamp(22px, 4vw, 48px) 60px;
+  padding: 52px clamp(22px, 4vw, 48px) 60px;
   color: var(--ink-body);
   font-family: var(--font-code);
   font-size: 12.5px;
@@ -458,7 +410,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 46px clamp(14px, 3vw, 40px) 50px;
+  padding: 52px clamp(14px, 3vw, 40px) 50px;
   background: var(--canvas);
 }
 /* A4 at 96dpi, so the preview matches what the print dialog lays out. */
@@ -487,7 +439,7 @@
   width: 100%;
   min-height: 0;
   resize: none;
-  padding: 40px clamp(28px, 5vw, 72px) 60px;
+  padding: 52px clamp(28px, 5vw, 72px) 60px;
   border: 0;
   outline: 0;
   background: transparent;

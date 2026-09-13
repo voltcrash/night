@@ -37,12 +37,8 @@
 		contentWidth: number;
 		onToggleOutputPane: () => void;
 		onOutputViewChange: (view: OutputView) => void;
-		onCopyText: () => void;
-		onDownloadText: () => void;
-		onCopyRichText: () => void;
-		onDownloadRtf: () => void;
-		onDownloadHtml: () => void;
-		onSavePdf: () => void;
+		onCopy: () => void;
+		onDownload: () => void;
 		onToggleRenderedPane: () => void;
 		onResize: (ratio: number) => void;
 		onResizeEnd: () => void;
@@ -65,7 +61,7 @@
 		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, htmlSource, renderedReadOnly, inlinePreviewBehavior, markdown, markdownLines, liveLine,
 		saveState, transferState, hasContent, renderedMarkdown, shortcuts, primaryModifier,
 		editor = $bindable(), liveEditor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
-		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopyText, onDownloadText, onCopyRichText, onDownloadRtf, onDownloadHtml, onSavePdf, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
+		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopy, onDownload, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
 		onRenderedLineKeydown, onLiveLineChange, onLiveLineKeydown, onActivateLiveLine,
 		renderEditableLine, renderLiveLine, liveLineKind
 	}: Props = $props();
@@ -84,6 +80,7 @@
 	let toggleSecondPane = $derived(swapped ? onToggleOutputPane : onToggleRenderedPane);
 	let towardsStart = $derived(stacked ? ChevronUp : ChevronLeft);
 	let towardsEnd = $derived(stacked ? ChevronDown : ChevronRight);
+	let activeView = $derived(outputViews.find((view) => view.id === outputView) ?? outputViews[0]);
 
 	function resizeTo(event: PointerEvent): void {
 		const bounds = shell?.getBoundingClientRect();
@@ -251,25 +248,10 @@
 						<button role="tab" class:active={outputView === view.id} aria-selected={outputView === view.id} title={view.description} onclick={() => onOutputViewChange(view.id)}><view.icon size={14} /><span>{view.label}</span></button>
 					{/each}
 				</div>
-				{#if outputView === 'text'}
-					<div class="output-actions">
-						<button class="output-action" onclick={onCopyText} disabled={!hasContent} title="Copy this note as plain text"><Copy size={14} /><span>Copy</span></button>
-						<button class="output-action" onclick={onDownloadText} disabled={!hasContent} title="Download this note as a text file"><Download size={14} /><span>Download</span></button>
-					</div>
-				{:else if outputView === 'rich-text'}
-					<div class="output-actions">
-						<button class="output-action" onclick={onCopyRichText} disabled={!hasContent} title="Copy this note with its formatting, to paste into a document or email"><Copy size={14} /><span>Copy</span></button>
-						<button class="output-action" onclick={onDownloadRtf} disabled={!hasContent} title="Download this note as an RTF document"><Download size={14} /><span>Download</span></button>
-					</div>
-				{:else if outputView === 'html'}
-					<div class="output-actions">
-						<button class="output-action" onclick={onDownloadHtml} disabled={!hasContent} title="Download this note as an HTML file"><Download size={14} /><span>Download</span></button>
-					</div>
-				{:else if outputView === 'pdf'}
-					<div class="output-actions">
-						<button class="output-action" onclick={onSavePdf} disabled={!hasContent} title="Print this note, or save it as a PDF from the print dialog"><Download size={14} /><span>Save as PDF</span></button>
-					</div>
-				{/if}
+				<div class="output-actions">
+					<button class="output-action" onclick={onCopy} disabled={!hasContent || !activeView.copyTitle} title={activeView.copyTitle ?? 'There is nothing to copy from the PDF view'}><Copy size={14} /><span>Copy</span></button>
+					<button class="output-action" onclick={onDownload} disabled={!hasContent} title={activeView.downloadTitle}><Download size={14} /><span>{activeView.downloadLabel}</span></button>
+				</div>
 			</div>
 			<div class="output-body">
 				{#if outputView === 'text'}

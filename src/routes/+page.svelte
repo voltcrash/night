@@ -95,12 +95,8 @@
 		contentWidth={page.contentWidth}
 		onToggleOutputPane={page.toggleOutputPane}
 		onOutputViewChange={page.setOutputView}
-		onCopyText={() => void page.copyText()}
-		onDownloadText={page.downloadText}
-		onCopyRichText={() => void page.copyRichText()}
-		onDownloadRtf={page.downloadRtf}
-		onDownloadHtml={page.downloadHtml}
-		onSavePdf={page.savePdf}
+		onCopy={() => void page.copyOutput()}
+		onDownload={page.downloadOutput}
 		onToggleRenderedPane={page.toggleRenderedPane}
 		onResize={page.setSplitRatio}
 		onResizeEnd={page.saveSplitRatio}
