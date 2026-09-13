@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// The output views stay folded into one icon until the switcher is hovered.
+async function showOutputView(page: Page, name: string): Promise<void> {
+  await page.locator(".output-switcher").hover();
+  await page.getByRole("tab", { name }).click();
+}
+
 async function blockNextVaultWrite(page: Page): Promise<void> {
   await page.evaluate(() => {
     const prototype = FileSystemFileHandle.prototype;
@@ -393,12 +399,14 @@ test("moves a pane by dragging its grip beside the divider or with the arrow key
   await expect(shell).not.toHaveClass(/panes-swapped/);
   await expect(page.locator(".pane-drop-slot")).toHaveCount(0);
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((animation) => animation.finished)),
+    Promise.all(
+      document.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    ),
   );
 
-  const toolbar = await page.locator(".output-toolbar").boundingBox();
-  if (!toolbar) throw new Error("The output toolbar is not laid out");
-  await page.mouse.move(toolbar.x + toolbar.width - 200, toolbar.y + toolbar.height / 2);
+  const outputGrip = await page.getByRole("button", { name: "Move the output pane" }).boundingBox();
+  if (!outputGrip) throw new Error("The output pane grip is not laid out");
+  await page.mouse.move(outputGrip.x + outputGrip.width / 2, outputGrip.y + outputGrip.height / 2);
   await page.mouse.down();
   await page.mouse.move(panesBox.x + panesBox.width - 20, panesBox.y + panesBox.height / 2, {
     steps: 10,
@@ -411,11 +419,13 @@ test("moves a pane by dragging its grip beside the divider or with the arrow key
   await page.keyboard.press("ArrowRight");
   await expect(shell).not.toHaveClass(/panes-swapped/);
   await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((animation) => animation.finished)),
+    Promise.all(
+      document.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    ),
   );
   expect(await gripOffset("Move the page pane")).toBeGreaterThan(14);
 
-  await page.getByRole("tab", { name: "HTML" }).click();
+  await showOutputView(page, "HTML");
   await expect(page.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "true");
   await expect(shell).not.toHaveClass(/panes-swapped/);
 });
@@ -434,7 +444,7 @@ test("shows the note as plain text in the output pane, copies and downloads it",
     });
   });
 
-  await page.getByRole("tab", { name: "Plain text" }).click();
+  await showOutputView(page, "Plain text");
   const expected = "Grocery list\n\n- Fresh bread\n- Oats (https://example.com/oats)";
   await expect(page.getByLabel("Plain text")).toHaveText(expected);
 
@@ -471,7 +481,7 @@ test("shows the formatted note in the output pane, copies it as rich text and do
     });
   });
 
-  await page.getByRole("tab", { name: "Rich text" }).click();
+  await showOutputView(page, "Rich text");
   const preview = page.getByLabel("Rich text");
   await expect(preview.locator("h1")).toHaveText("Meeting notes");
   await expect(preview.locator("strong")).toHaveText("Friday");
@@ -499,7 +509,7 @@ test("shows the generated HTML in the output pane and downloads it", async ({ pa
   await expect(markdown).toBeEnabled();
   await markdown.fill("# Release notes\n\nShipped **today**.");
 
-  await page.getByRole("tab", { name: "HTML" }).click();
+  await showOutputView(page, "HTML");
   const html = page.locator(".output-code");
   await expect(html).toContainText('<h1 id="user-content-release-notes">');
   await expect(html).toContainText("<strong>");
@@ -508,7 +518,7 @@ test("shows the generated HTML in the output pane and downloads it", async ({ pa
   await page.getByRole("button", { name: "Download" }).click();
   expect((await download).suggestedFilename()).toBe("release-notes.html");
 
-  await page.getByRole("tab", { name: "Markdown" }).click();
+  await showOutputView(page, "Markdown");
   await expect(markdown).toHaveValue(/Release notes/);
 });
 
@@ -524,7 +534,7 @@ test("previews the printed page and prints it from the output pane", async ({ pa
     };
   });
 
-  await page.getByRole("tab", { name: "PDF" }).click();
+  await showOutputView(page, "PDF");
   const sheet = page.locator(".pdf-sheet");
   await expect(sheet.locator("h1")).toHaveText("Field report");
 

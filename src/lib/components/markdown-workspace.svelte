@@ -161,8 +161,6 @@
 
 	function startPaneDrag(event: PointerEvent, pane: Pane): void {
 		if (!bothPanesVisible || event.button !== 0 || drag) return;
-		// Only the bare toolbar and grip start a move, so the tabs and actions keep their clicks.
-		if ((event.target as HTMLElement).closest('button:not(.pane-grip)')) return;
 		event.preventDefault();
 		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
 		const bounds = (pane === 'output' ? outputPaneElement : renderedPaneElement)!.getBoundingClientRect();
@@ -247,7 +245,7 @@
 
 	<section bind:this={shell} class="editor-shell" class:output-hidden={!outputPaneVisible} class:rendered-hidden={!renderedPaneVisible} class:panes-stacked={stacked} class:panes-swapped={swapped} class:first-hidden={!firstPaneVisible} class:second-hidden={!secondPaneVisible} class:resizing class:pane-moving={drag?.moving} style={`--split: ${splitRatio}%; --content-width: ${contentWidth}px`}>
 		<div bind:this={outputPaneElement} class="output-pane" class:dragged={drag?.moving && drag.pane === 'output'} style={drag?.moving && drag.pane === 'output' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined}>
-			<div class="output-toolbar" class:draggable={bothPanesVisible} role="presentation" onpointerdown={(event) => startPaneDrag(event, 'output')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag}>
+			<div class="output-switcher">
 				<div class="output-views" role="tablist" aria-label="Output view">
 					{#each outputViews as view (view.id)}
 						<button role="tab" class:active={outputView === view.id} aria-selected={outputView === view.id} title={view.description} onclick={() => onOutputViewChange(view.id)}><view.icon size={14} /><span>{view.label}</span></button>
@@ -264,9 +262,13 @@
 						<button class="output-action" onclick={onDownloadRtf} disabled={!hasContent} title="Download this note as an RTF document"><Download size={14} /><span>Download</span></button>
 					</div>
 				{:else if outputView === 'html'}
-					<button class="output-action" onclick={onDownloadHtml} disabled={!hasContent} title="Download this note as an HTML file"><Download size={14} /><span>Download</span></button>
+					<div class="output-actions">
+						<button class="output-action" onclick={onDownloadHtml} disabled={!hasContent} title="Download this note as an HTML file"><Download size={14} /><span>Download</span></button>
+					</div>
 				{:else if outputView === 'pdf'}
-					<button class="output-action" onclick={onSavePdf} disabled={!hasContent} title="Print this note, or save it as a PDF from the print dialog"><Download size={14} /><span>Save as PDF</span></button>
+					<div class="output-actions">
+						<button class="output-action" onclick={onSavePdf} disabled={!hasContent} title="Print this note, or save it as a PDF from the print dialog"><Download size={14} /><span>Save as PDF</span></button>
+					</div>
 				{/if}
 			</div>
 			<div class="output-body">
