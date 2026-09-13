@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { renderMarkdown, resolveLocalAttachmentUrl } from "./markdown.js";
+import { renderMarkdown, renderMarkdownBlocks, resolveLocalAttachmentUrl } from "./markdown.js";
 
 describe("renderMarkdown", () => {
   it("renders CommonMark structure and GFM extensions", () => {
@@ -149,5 +149,39 @@ A footnote[^1] and math $a^2$.
     const html = renderMarkdown("a ~ b ~ c and 2 ^ 3 ^ 4");
 
     expect(html).toBe("<p>a ~ b ~ c and 2 ^ 3 ^ 4</p>");
+  });
+});
+
+describe("renderMarkdownBlocks", () => {
+  it("marks each top-level element with the lines it was written on", () => {
+    const source = `---
+title: Hidden
+---
+
+# Title
+
+\`\`\`ts
+const a = 1;
+\`\`\`
+
+A note[^1].
+
+[^1]: Source.`;
+    const blocks = renderMarkdownBlocks(source);
+
+    expect(blocks.map((block) => block.html).join("")).toBe(renderMarkdown(source));
+    const elements = blocks.filter((block) => block.element);
+    expect(elements.map((block) => block.html.match(/^<([a-z\d]+)/)?.[1])).toEqual([
+      "h1",
+      "pre",
+      "p",
+      "section",
+    ]);
+    expect(elements.map((block) => block.lines)).toEqual([
+      { start: 4, end: 5 },
+      { start: 6, end: 9 },
+      { start: 10, end: 11 },
+      undefined,
+    ]);
   });
 });

@@ -1,4 +1,23 @@
-import { renderMarkdownTree, type MarkdownTreeNode } from "./markdown.js";
+import {
+  renderMarkdownTree,
+  sourceLines,
+  type MarkdownTreeNode,
+  type RenderedBlock,
+  type SourceLines,
+} from "./markdown.js";
+
+/** A top-level block of a text output, with the Markdown lines it was written from. */
+export interface TextBlock {
+  text: string;
+  lines?: SourceLines;
+}
+
+export const PLAIN_TEXT_SEPARATOR = "\n\n";
+export const HTML_SOURCE_SEPARATOR = "\n";
+
+export function joinTextBlocks(blocks: TextBlock[], separator: string): string {
+  return blocks.map((block) => block.text).join(separator);
+}
 
 const INLINE_TAGS = new Set([
   "a",
@@ -96,6 +115,13 @@ export function formatHtmlSource(html: string): string {
   return lines.join("\n");
 }
 
+/** Formats rendered blocks one at a time; joined by `HTML_SOURCE_SEPARATOR` they read as `formatHtmlSource`. */
+export function formatHtmlBlocks(blocks: RenderedBlock[]): TextBlock[] {
+  return blocks
+    .map((block) => ({ text: formatHtmlSource(block.html), lines: block.lines }))
+    .filter((block) => block.text);
+}
+
 export interface HtmlDocumentOptions {
   title: string;
   body: string;
@@ -189,7 +215,19 @@ const BLOCK_TAGS = new Set([
 
 /** Reads a note as plain text: the words, list markers, and table cells, without any markup. */
 export function markdownToPlainText(source: string): string {
-  return plainBlocks(renderMarkdownTree(source).children ?? []).join("\n\n");
+  return joinTextBlocks(plainTextBlocks(source), PLAIN_TEXT_SEPARATOR);
+}
+
+export function plainTextBlocks(source: string): TextBlock[] {
+  return groupBlocks(renderMarkdownTree(source).children ?? [])
+    .map((group) => ({ text: plainGroup(group), lines: groupLines(group) }))
+    .filter((block) => block.text);
+}
+
+function groupLines(group: MarkdownTreeNode[]): SourceLines | undefined {
+  const first = group.map(sourceLines).find(Boolean);
+  const last = group.map(sourceLines).findLast(Boolean);
+  return first && last ? { start: first.start, end: last.end } : undefined;
 }
 
 function isBlock(node: MarkdownTreeNode): boolean {
@@ -217,13 +255,13 @@ function groupBlocks(children: MarkdownTreeNode[]): MarkdownTreeNode[][] {
 }
 
 function plainBlocks(children: MarkdownTreeNode[]): string[] {
-  return groupBlocks(children)
-    .map((group) =>
-      group.length === 1 && isBlock(group[0]!)
-        ? plainBlock(group[0]!)
-        : group.map(plainInline).join("").trim(),
-    )
-    .filter(Boolean);
+  return groupBlocks(children).map(plainGroup).filter(Boolean);
+}
+
+function plainGroup(group: MarkdownTreeNode[]): string {
+  return group.length === 1 && isBlock(group[0]!)
+    ? plainBlock(group[0]!)
+    : group.map(plainInline).join("").trim();
 }
 
 function plainBlock(node: MarkdownTreeNode): string {

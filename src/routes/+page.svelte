@@ -73,7 +73,10 @@
 		paneOrder={page.paneOrder}
 		outputView={page.outputView}
 		plainText={page.plainText}
+		plainTextBlocks={page.plainTextBlocks}
 		htmlSource={page.htmlSource}
+		htmlSourceBlocks={page.htmlSourceBlocks}
+		renderedBlockLines={page.renderedBlockLines}
 		renderedReadOnly={page.renderedReadOnly}
 		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		markdown={page.markdown}

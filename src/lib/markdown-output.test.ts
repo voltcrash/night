@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import { renderMarkdown, renderMarkdownBlocks } from "./markdown.js";
 import {
   createHtmlDocument,
+  formatHtmlBlocks,
   formatHtmlSource,
+  HTML_SOURCE_SEPARATOR,
+  joinTextBlocks,
   markdownToPlainText,
+  plainTextBlocks,
   markdownToRtf,
   outputFileName,
 } from "./markdown-output.js";
@@ -46,6 +51,37 @@ describe("formatHtmlSource", () => {
         "</p>",
       ].join("\n"),
     );
+  });
+});
+
+describe("formatHtmlBlocks", () => {
+  it("reads the same as formatting the whole note, block by block", () => {
+    const source = `# Title
+
+- One
+- **Two**
+
+$$
+x^2
+$$
+
+| A | B |
+| - | - |
+| 1 | 2 |
+
+Text[^1].
+
+[^1]: Note.`;
+    const blocks = formatHtmlBlocks(renderMarkdownBlocks(source));
+
+    expect(joinTextBlocks(blocks, HTML_SOURCE_SEPARATOR)).toBe(
+      formatHtmlSource(renderMarkdown(source)),
+    );
+    expect(blocks[0]).toEqual({
+      text: '<h1 id="user-content-title">\n  Title\n</h1>',
+      lines: { start: 0, end: 1 },
+    });
+    expect(blocks[1]?.lines).toEqual({ start: 2, end: 4 });
   });
 });
 
@@ -114,6 +150,14 @@ const a = 1;
         "Diagram and x^2.",
       ].join("\n"),
     );
+  });
+
+  it("marks each block with the lines it was written on", () => {
+    expect(plainTextBlocks("# Title\n\nFirst line\nsecond line\n\n\n- item")).toEqual([
+      { text: "Title", lines: { start: 0, end: 1 } },
+      { text: "First line\nsecond line", lines: { start: 2, end: 4 } },
+      { text: "- item", lines: { start: 6, end: 7 } },
+    ]);
   });
 
   it("marks footnote references and drops their back links", () => {

@@ -40,7 +40,12 @@ import type {
 } from "$lib/components/app-types";
 import { isOutputView, type OutputView } from "$lib/components/output-views";
 import type { InlinePreviewBehavior, SettingsSection } from "$lib/components/settings-types";
-import { renderMarkdown, resolveLocalAttachmentUrl, type LocalAttachmentUrl } from "$lib/markdown";
+import {
+  renderMarkdown,
+  renderMarkdownBlocks,
+  resolveLocalAttachmentUrl,
+  type LocalAttachmentUrl,
+} from "$lib/markdown";
 import {
   applyColorTheme,
   applyFontChoices,
@@ -62,8 +67,12 @@ import {
   GithubRequestError,
   importMarkdownFiles,
   listGithubBackupCommits,
+  formatHtmlBlocks,
   formatHtmlSource,
-  markdownToPlainText,
+  HTML_SOURCE_SEPARATOR,
+  joinTextBlocks,
+  PLAIN_TEXT_SEPARATOR,
+  plainTextBlocks as notePlainTextBlocks,
   markdownToRtf,
   nextThemePreference,
   normalizeVaultName,
@@ -231,9 +240,15 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   );
   const wordCount = $derived(markdown.trim() ? markdown.trim().split(/\s+/).length : 0);
   const readingMinutes = $derived(Math.max(1, Math.ceil(wordCount / 220)));
-  const renderedMarkdown = $derived(renderMarkdown(previewMarkdown, resolveAttachmentUrl));
-  const plainText = $derived(markdownToPlainText(markdown));
-  const htmlSource = $derived(formatHtmlSource(renderedMarkdown));
+  const renderedBlocks = $derived(renderMarkdownBlocks(previewMarkdown, resolveAttachmentUrl));
+  const renderedMarkdown = $derived(renderedBlocks.map((block) => block.html).join(""));
+  const renderedBlockLines = $derived(
+    renderedBlocks.filter((block) => block.element).map((block) => block.lines),
+  );
+  const plainTextBlocks = $derived(notePlainTextBlocks(markdown));
+  const plainText = $derived(joinTextBlocks(plainTextBlocks, PLAIN_TEXT_SEPARATOR));
+  const htmlSourceBlocks = $derived(formatHtmlBlocks(renderedBlocks));
+  const htmlSource = $derived(joinTextBlocks(htmlSourceBlocks, HTML_SOURCE_SEPARATOR));
   const noteTitle = $derived(titleFromMarkdown(markdown));
   const markdownLines = $derived(markdown.split("\n"));
   const liveCodeLines = $derived.by(() => {
@@ -2323,6 +2338,15 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     },
     get renderedMarkdown() {
       return renderedMarkdown;
+    },
+    get renderedBlockLines() {
+      return renderedBlockLines;
+    },
+    get plainTextBlocks() {
+      return plainTextBlocks;
+    },
+    get htmlSourceBlocks() {
+      return htmlSourceBlocks;
     },
     get plainText() {
       return plainText;

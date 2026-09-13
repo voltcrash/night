@@ -20,6 +20,7 @@ export interface LocalAttachmentUrl {
 
 export type MarkdownTreeNode = {
   children?: MarkdownTreeNode[];
+  position?: { start: { line: number }; end: { line: number } };
   properties?: Record<string, unknown>;
   tagName?: string;
   type?: string;
@@ -82,11 +83,39 @@ function allowClasses(
   ];
 }
 
+/** The Markdown lines a block was written on, counted from zero and ending before `end`. */
+export interface SourceLines {
+  start: number;
+  end: number;
+}
+
+export interface RenderedBlock {
+  html: string;
+  /** Whether the node is an element, rather than the whitespace between elements. */
+  element: boolean;
+  /** Absent for top-level elements that were generated rather than written, such as footnotes. */
+  lines?: SourceLines;
+}
+
 export function renderMarkdown(
   source: string,
   resolveLocalUrl?: LocalUrlResolver,
   options: MarkdownRenderOptions = {},
 ): string {
+  return renderMarkdownBlocks(source, resolveLocalUrl, options)
+    .map((block) => block.html)
+    .join("");
+}
+
+/**
+ * Renders a note as its top-level nodes, which join into the HTML of `renderMarkdown`. Elements
+ * carry the lines they came from, so views of the note can be lined up with its source.
+ */
+export function renderMarkdownBlocks(
+  source: string,
+  resolveLocalUrl?: LocalUrlResolver,
+  options: MarkdownRenderOptions = {},
+): RenderedBlock[] {
   const remoteImagePolicy = options.remoteImages ?? "block";
   const processor = markdownProcessor()
     // KaTeX runs after sanitizing, as its output is generated rather than authored.
@@ -95,7 +124,18 @@ export function renderMarkdown(
   if (resolveLocalUrl || remoteImagePolicy === "block") {
     processor.use(resolveMarkdownUrls, resolveLocalUrl, remoteImagePolicy);
   }
-  return String(processor.use(rehypeStringify).processSync(source));
+  processor.use(rehypeStringify);
+  const tree = processor.runSync(processor.parse(source)) as MarkdownTreeNode;
+  return (tree.children ?? []).map((node) => ({
+    html: String(processor.stringify(node as Parameters<typeof processor.stringify>[0])),
+    element: node.type === "element",
+    lines: sourceLines(node),
+  }));
+}
+
+export function sourceLines(node: MarkdownTreeNode): SourceLines | undefined {
+  const position = node.position;
+  return position ? { start: position.start.line - 1, end: position.end.line } : undefined;
 }
 
 /**

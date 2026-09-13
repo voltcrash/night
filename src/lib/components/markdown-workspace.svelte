@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { Copy, Download, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CloudOff, HardDrive, PanelLeft, PencilLine, X } from '@lucide/svelte';
-	import { formatShortcut, type KeyboardShortcuts, type PrimaryModifier } from '$lib';
+	import { formatShortcut, HTML_SOURCE_SEPARATOR, PLAIN_TEXT_SEPARATOR, type KeyboardShortcuts, type PrimaryModifier, type TextBlock } from '$lib';
+	import type { SourceLines } from '$lib/markdown';
+	import { elementAnchors, scrollAnchors, syncedScrollTop, textAnchors, textareaAnchors, type ScrollAnchor } from '$lib/scroll-sync';
 	import type { InlinePreviewBehavior } from './settings-dialog.svelte';
 	import type { PaneEdge, PaneLayout, PaneOrder, SaveState, TransferState } from './app-types';
 	import { outputViews, type OutputView } from './output-views';
@@ -15,7 +17,10 @@
 		paneOrder: PaneOrder;
 		outputView: OutputView;
 		plainText: string;
+		plainTextBlocks: TextBlock[];
 		htmlSource: string;
+		htmlSourceBlocks: TextBlock[];
+		renderedBlockLines: (SourceLines | undefined)[];
 		renderedReadOnly: boolean;
 		inlinePreviewBehavior: InlinePreviewBehavior;
 		markdown: string;
@@ -58,7 +63,7 @@
 	}
 
 	let {
-		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, htmlSource, renderedReadOnly, inlinePreviewBehavior, markdown, markdownLines, liveLine,
+		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, plainTextBlocks, htmlSource, htmlSourceBlocks, renderedBlockLines, renderedReadOnly, inlinePreviewBehavior, markdown, markdownLines, liveLine,
 		saveState, transferState, hasContent, renderedMarkdown, shortcuts, primaryModifier,
 		editor = $bindable(), liveEditor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
 		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopy, onDownload, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
@@ -222,6 +227,105 @@
 		});
 		shell?.querySelector('.pane-divider')?.animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }], { duration: 300 });
 	}
+
+	// Scrolling either pane scrolls the other to the same part of the note.
+	let outputBody = $state<HTMLElement>();
+	let scrollDriver: Pane = 'rendered';
+	let syncFrame = 0;
+	const syncedTops = new WeakMap<Element, number>();
+
+	function scrollerOf(pane: Pane): HTMLElement | undefined {
+		if (pane === 'rendered') return renderedPaneElement;
+		return (outputBody?.firstElementChild as HTMLElement | null) ?? undefined;
+	}
+
+	function proseAnchors(scroller: HTMLElement): ScrollAnchor[] {
+		const article = scroller.querySelector('article.prose');
+		return article ? elementAnchors(scroller, [...article.children].map((element, index) => [element, renderedBlockLines[index]])) : [];
+	}
+
+	function paneAnchors(pane: Pane, scroller: HTMLElement): ScrollAnchor[] {
+		let points: ScrollAnchor[];
+		if (pane === 'rendered') {
+			points = !renderedReadOnly && liveEditorContainer ? elementAnchors(scroller, [...liveEditorContainer.children].map((element, index) => [element, { start: index, end: index + 1 }])) : proseAnchors(scroller);
+		} else if (scroller instanceof HTMLTextAreaElement) {
+			points = textareaAnchors(scroller);
+		} else if (outputView === 'text') {
+			points = textAnchors(scroller, plainTextBlocks, PLAIN_TEXT_SEPARATOR);
+		} else if (outputView === 'html') {
+			points = textAnchors(scroller, htmlSourceBlocks, HTML_SOURCE_SEPARATOR);
+		} else {
+			points = proseAnchors(scroller);
+		}
+		return scrollAnchors(points, markdownLines.length, scroller.scrollHeight);
+	}
+
+	function syncScroll(from: Pane): void {
+		const to: Pane = from === 'output' ? 'rendered' : 'output';
+		const source = scrollerOf(from);
+		const target = scrollerOf(to);
+		if (!bothPanesVisible || !source || !target) return;
+		const top = syncedScrollTop(
+			{ anchors: paneAnchors(from, source), scrollTop: source.scrollTop, scrollHeight: source.scrollHeight, clientHeight: source.clientHeight },
+			{ anchors: paneAnchors(to, target), scrollHeight: target.scrollHeight, clientHeight: target.clientHeight }
+		);
+		if (Math.abs(target.scrollTop - top) < 1) return;
+		target.scrollTo({ top, behavior: 'instant' });
+		// Browsers round the offset, so the echo is recognised by the value they settled on.
+		syncedTops.set(target, target.scrollTop);
+	}
+
+	function queueScrollSync(from: Pane): void {
+		scrollDriver = from;
+		syncFrame ||= requestAnimationFrame(() => {
+			syncFrame = 0;
+			syncScroll(scrollDriver);
+		});
+	}
+
+	// The pane being typed in keeps its place, and the other one catches up with it.
+	function leadingPane(): Pane {
+		if (outputPaneElement?.contains(document.activeElement)) return 'output';
+		if (renderedPaneElement?.contains(document.activeElement)) return 'rendered';
+		return scrollDriver;
+	}
+
+	function handlePaneScroll(event: Event, pane: Pane): void {
+		const scroller = scrollerOf(pane);
+		if (event.target !== scroller) return;
+		const synced = syncedTops.get(scroller);
+		syncedTops.delete(scroller);
+		if (synced !== undefined && Math.abs(scroller.scrollTop - synced) <= 1) return;
+		queueScrollSync(pane);
+	}
+
+	// A pane whose contents were just swapped out follows the other one.
+	$effect(() => {
+		void outputView;
+		tick().then(() => queueScrollSync('rendered'));
+	});
+
+	$effect(() => {
+		void renderedReadOnly;
+		void inlinePreviewBehavior;
+		tick().then(() => queueScrollSync('output'));
+	});
+
+	$effect(() => {
+		void [markdown, renderedMarkdown, bothPanesVisible, stacked, contentWidth];
+		tick().then(() => queueScrollSync(leadingPane()));
+	});
+
+	$effect(() => {
+		if (!shell) return;
+		const observer = new ResizeObserver(() => queueScrollSync(leadingPane()));
+		observer.observe(shell);
+		return () => {
+			observer.disconnect();
+			cancelAnimationFrame(syncFrame);
+			syncFrame = 0;
+		};
+	});
 </script>
 
 <svelte:window onkeydown={cancelPaneDrag} />
@@ -253,7 +357,7 @@
 					<button class="output-action" onclick={onDownload} disabled={!hasContent} title={activeView.downloadTitle}><Download size={14} /><span>{activeView.downloadLabel}</span></button>
 				</div>
 			</div>
-			<div class="output-body">
+			<div class="output-body" bind:this={outputBody} onscrollcapture={(event) => handlePaneScroll(event, 'output')} onloadcapture={() => queueScrollSync(leadingPane())}>
 				{#if outputView === 'text'}
 					<pre class="output-code output-text" aria-label="Plain text">{plainText}</pre>
 				{:else if outputView === 'rich-text'}
@@ -298,7 +402,7 @@
 				<button class="pane-handle pane-handle-end" title={label} aria-label={label} aria-expanded={secondPaneVisible} onclick={toggleSecondPane}><Icon size={15} /></button>
 			{/if}
 		</div>
-		<div bind:this={renderedPaneElement} class="preview-pane" class:dragged={drag?.moving && drag.pane === 'rendered'} style={drag?.moving && drag.pane === 'rendered' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined}>
+		<div bind:this={renderedPaneElement} class="preview-pane" class:dragged={drag?.moving && drag.pane === 'rendered'} style={drag?.moving && drag.pane === 'rendered' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined} onscrollcapture={(event) => handlePaneScroll(event, 'rendered')} onloadcapture={() => queueScrollSync(leadingPane())}>
 			{#if renderedReadOnly}
 				{#if hasContent}
 					<article class="prose">{@html renderedMarkdown}</article>

@@ -356,6 +356,119 @@ test("keeps both panes synchronized and lets each pane be tucked away", async ({
   await expect(page.locator(".preview-pane")).toBeVisible();
 });
 
+type ScrollSide = "output" | "rendered";
+
+// Scrolls one pane so the marker sits where the pane reads its position, then reports how far
+// the marker sits from that point in each pane.
+async function markerOffsets(page: Page, from: ScrollSide | null, marker: string) {
+  return page.evaluate(
+    ({ from, marker }: { from: ScrollSide | null; marker: string }) => {
+      const scrollers = {
+        output: document.querySelector<HTMLElement>(".output-body > :first-child")!,
+        rendered: document.querySelector<HTMLElement>(".preview-pane")!,
+      };
+      const markerTop = (scroller: HTMLElement): number => {
+        if (scroller instanceof HTMLTextAreaElement) {
+          const style = getComputedStyle(scroller);
+          const line = scroller.value.split("\n").findIndex((text) => text.includes(marker));
+          return parseFloat(style.paddingTop) + line * parseFloat(style.lineHeight);
+        }
+        const walker = document.createTreeWalker(scroller, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const text = walker.currentNode as Text;
+          const index = text.data.indexOf(marker);
+          if (index === -1) continue;
+          const range = document.createRange();
+          range.setStart(text, index);
+          range.setEnd(text, index + marker.length);
+          return (
+            range.getBoundingClientRect().top -
+            scroller.getBoundingClientRect().top +
+            scroller.scrollTop
+          );
+        }
+        throw new Error(`${marker} is not shown`);
+      };
+      const offset = (scroller: HTMLElement): number => {
+        const range = scroller.scrollHeight - scroller.clientHeight;
+        const reference = (scroller.clientHeight * scroller.scrollTop) / range;
+        return markerTop(scroller) - scroller.scrollTop - reference;
+      };
+      if (from) {
+        const scroller = scrollers[from];
+        const range = scroller.scrollHeight - scroller.clientHeight;
+        scroller.scrollTop = (markerTop(scroller) * range) / scroller.scrollHeight;
+      }
+      return { output: offset(scrollers.output), rendered: offset(scrollers.rendered) };
+    },
+    { from, marker },
+  );
+}
+
+test("scrolls each pane to the part of the note shown in the other one", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  // Sections differ in length and shape, so a proportional scroll would drift away from them.
+  const sections = Array.from({ length: 30 }, (_, index) => {
+    const body = Array.from(
+      { length: (index % 4) + 1 },
+      (_, line) => `Line ${line} of part ${index}.`,
+    );
+    const extra =
+      index % 3 === 0
+        ? ["", "```", ...Array.from({ length: 14 }, (_, line) => `code ${line}`), "```"]
+        : index % 3 === 1
+          ? ["", "- one", "- two", "- three"]
+          : [];
+    return [`## Marker-${index}`, "", ...body, ...extra].join("\n");
+  });
+  await markdown.fill(sections.join("\n\n"));
+  await expect(page.locator(".preview-pane")).toContainText("Marker-29");
+
+  const views = ["Markdown", "Plain text", "Rich text", "HTML", "PDF"];
+  for (const readOnly of [false, true]) {
+    if (readOnly) {
+      await page.getByRole("tab", { name: "Tools" }).click();
+      await page.getByRole("button", { name: "Turn on read-only" }).click();
+      await expect(page.locator(".preview-pane article.prose")).toBeVisible();
+    }
+    for (const [index, view] of views.entries()) {
+      await openOutputSwitcher(page);
+      await page.getByRole("tab", { name: view }).click();
+      for (const [from, marker] of [
+        ["rendered", `Marker-${7 + index * 3}`],
+        ["output", `Marker-${24 - index * 2}`],
+      ] as const) {
+        const other = from === "output" ? "rendered" : "output";
+        await markerOffsets(page, from, marker);
+        await expect
+          .poll(async () => Math.abs((await markerOffsets(page, null, marker))[other]), {
+            message: `${view} ${readOnly ? "read-only" : "editable"}: ${other} follows ${from} to ${marker}`,
+          })
+          .toBeLessThan(40);
+      }
+    }
+  }
+
+  // Typing at the end keeps the editor on the caret, and the page follows it down.
+  await openOutputSwitcher(page);
+  await page.getByRole("tab", { name: "Markdown" }).click();
+  await markdown.focus();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("\n\nThe last word.");
+  const caretShown = await markdown.evaluate((textarea: HTMLTextAreaElement) => {
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
+    const caretTop = textarea.scrollHeight - parseFloat(getComputedStyle(textarea).paddingBottom);
+    return (
+      caretTop - lineHeight >= textarea.scrollTop &&
+      caretTop <= textarea.scrollTop + textarea.clientHeight
+    );
+  });
+  expect(caretShown).toBe(true);
+  await expect(page.locator(".preview-pane").getByText("The last word.")).toBeInViewport();
+});
+
 test("moves a pane by dragging its grip beside the divider or with the arrow keys", async ({
   page,
 }) => {
