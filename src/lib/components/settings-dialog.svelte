@@ -19,7 +19,7 @@
 	} from '$lib';
 	import { manageModalFocus } from '$lib/modal-focus';
 	import GithubIcon from './github-icon.svelte';
-	import type { InlinePreviewBehavior, SettingsSection } from './settings-types';
+	import type { SettingsSection } from './settings-types';
 
 	interface Props {
 		vault?: Vault;
@@ -39,7 +39,6 @@
 		resolvedTheme: ResolvedTheme;
 		colorTheme: ColorTheme;
 		fonts: FontChoices;
-		inlinePreviewBehavior: InlinePreviewBehavior;
 		shortcuts: KeyboardShortcuts;
 		primaryModifier: PrimaryModifier;
 		section?: SettingsSection;
@@ -47,7 +46,6 @@
 		onColorThemeChange: (theme: ColorTheme) => void;
 		onFontChange: (role: FontRole, id: string) => void;
 		onResetFonts: () => void;
-		onInlinePreviewBehaviorChange: (behavior: InlinePreviewBehavior) => void;
 		onShortcutChange: (action: ShortcutAction, shortcut: KeyboardShortcut | null) => void;
 		onResetShortcuts: () => void;
 		onClose: () => void;
@@ -68,8 +66,8 @@
 
 	let {
 		vault, vaultName, suggestedRepositoryName, isOnline, githubUser, githubState, githubMessage, githubBackup, pendingBackupCount,
-		backupState, backupMessage, backupCommitUrl, transferState, theme, resolvedTheme, colorTheme, fonts, inlinePreviewBehavior, shortcuts, primaryModifier,
-		section = $bindable('storage'), onThemeChange, onColorThemeChange, onFontChange, onResetFonts, onInlinePreviewBehaviorChange, onShortcutChange, onResetShortcuts, onClose, onConnectGithub, onDisconnectGithub, onCreateRepository, onSelectRepository, onForgetRepository,
+		backupState, backupMessage, backupCommitUrl, transferState, theme, resolvedTheme, colorTheme, fonts, shortcuts, primaryModifier,
+		section = $bindable('storage'), onThemeChange, onColorThemeChange, onFontChange, onResetFonts, onShortcutChange, onResetShortcuts, onClose, onConnectGithub, onDisconnectGithub, onCreateRepository, onSelectRepository, onForgetRepository,
 		onBackup, onRestore, onImportFolder, onImportZip, onExportFolder, onExportZip, onPrepareVaultDeletion, onDeleteVault
 	}: Props = $props();
 
@@ -328,18 +326,6 @@
 							</select>
 						</div>
 					{/each}
-
-					<h4 class="theme-section-title">Markdown while you write</h4>
-					<div class="preview-behavior-options" role="radiogroup" aria-label="Formatted editing behavior">
-						<button class:active={inlinePreviewBehavior === 'rendered'} role="radio" aria-checked={inlinePreviewBehavior === 'rendered'} onclick={() => onInlinePreviewBehaviorChange('rendered')}>
-							<strong>Keep formatting</strong>
-							<small>Keep the active line formatted and hide recognized Markdown markers as you type.</small>
-						</button>
-						<button class:active={inlinePreviewBehavior === 'source-line'} role="radio" aria-checked={inlinePreviewBehavior === 'source-line'} onclick={() => onInlinePreviewBehaviorChange('source-line')}>
-							<strong>Reveal Markdown on active line</strong>
-							<small>Show the raw Markdown for the active line while the rest stays formatted.</small>
-						</button>
-					</div>
 				{:else if section === 'themes'}
 					<h3>Themes</h3>
 					<p class="settings-hint">Choose how Onyx looks in this browser.</p>

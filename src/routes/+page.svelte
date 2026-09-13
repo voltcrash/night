@@ -39,6 +39,7 @@
 		primaryModifier={page.primaryModifier}
 		renderedPaneVisible={page.renderedPaneVisible}
 		renderedReadOnly={page.renderedReadOnly}
+		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		wordCount={page.wordCount}
 		readingMinutes={page.readingMinutes}
 		contentWidth={page.contentWidth}
@@ -59,6 +60,7 @@
 		onInsertSyntax={(before, after, placeholder) => void page.insertSyntax(before, after, placeholder)}
 		onPrefixLine={(prefix) => void page.prefixLine(prefix)}
 		onToggleRenderedReadOnly={page.toggleRenderedReadOnly}
+		onToggleInlinePreview={page.toggleInlinePreview}
 		onContentWidthChange={page.setContentWidth}
 	/>
 
@@ -153,14 +155,12 @@
 		resolvedTheme={page.resolvedTheme}
 		colorTheme={page.colorTheme}
 		fonts={page.fonts}
-		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		shortcuts={page.shortcuts}
 		primaryModifier={page.primaryModifier}
 		onThemeChange={page.setTheme}
 		onColorThemeChange={page.setColorTheme}
 		onFontChange={page.setFont}
 		onResetFonts={page.resetFonts}
-		onInlinePreviewBehaviorChange={page.setInlinePreviewBehavior}
 		onShortcutChange={page.setShortcut}
 		onResetShortcuts={page.resetShortcuts}
 		bind:section={page.settingsSection}

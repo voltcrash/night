@@ -314,10 +314,11 @@ test("can reveal the active Markdown line while editing the page", async ({ page
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
 
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Editor", exact: true }).click();
-  await page.getByRole("radio", { name: /Reveal Markdown on active line/ }).click();
-  await page.getByRole("button", { name: "Close settings" }).click();
+  await page.getByRole("tab", { name: "Tools" }).click();
+  const inlinePreview = page.getByRole("button", { name: "Inline preview" });
+  await expect(inlinePreview).toHaveAttribute("aria-pressed", "false");
+  await inlinePreview.click();
+  await expect(inlinePreview).toHaveAttribute("aria-pressed", "true");
 
   await page.getByRole("button", { name: "Edit line 3" }).click();
   await expect(page.getByRole("textbox", { name: "Markdown line 3" })).toBeVisible();

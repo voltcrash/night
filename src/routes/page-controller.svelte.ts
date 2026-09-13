@@ -1534,7 +1534,9 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     applyFontChoices(fonts);
   }
 
-  function setInlinePreviewBehavior(behavior: InlinePreviewBehavior): void {
+  function toggleInlinePreview(): void {
+    const behavior: InlinePreviewBehavior =
+      inlinePreviewBehavior === "rendered" ? "source-line" : "rendered";
     inlinePreviewBehavior = behavior;
     writeLocalStorage("onyx:inline-preview-behavior", behavior);
     if (renderedPaneVisible && !renderedReadOnly && editingSurface === "rendered") {
@@ -2375,7 +2377,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     setColorTheme,
     setFont,
     resetFonts,
-    setInlinePreviewBehavior,
+    toggleInlinePreview,
     setShortcut,
     resetShortcuts,
     createBackupRepository,
