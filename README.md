@@ -9,7 +9,7 @@ adds private backup and cross-device restore.
 - Create and autosave Markdown notes locally.
 - Search note titles and contents from an on-device index.
 - Write in source, rendered inline, split, or read-only preview mode.
-- Drag a pane by its top edge to any side of the workspace to place the panes side by side or stacked, and drag the divider to resize them.
+- Drag a pane by the grip in its top corner beside the divider to any side of the workspace to place the panes side by side or stacked, and drag the divider to resize them.
 - Switch the output pane between the Markdown source, plain text, rich text, the generated HTML,
   and a printed-page preview. Plain text copies to the clipboard or downloads as a text file, rich
   text copies with its formatting or downloads as an RTF document, HTML downloads as a standalone

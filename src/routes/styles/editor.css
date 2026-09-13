@@ -165,7 +165,10 @@
 .pane-handle:hover {
   color: var(--ink);
 }
-/* The top edge of each pane is its grip: a thin strip that reveals a pill when pointed at. */
+/*
+ * Each pane's grip sits in its top corner facing the divider, clear of the window's top edge
+ * (which full-screen macOS gives to the menu bar) and a little away from the divider itself.
+ */
 .output-pane,
 .preview-pane {
   transition: opacity 0.2s ease;
@@ -180,53 +183,65 @@
   height: 0;
 }
 .pane-grip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 4;
-  height: 7px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 27px;
+  height: 27px;
   padding: 0;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
   background: transparent;
+  color: var(--muted);
   cursor: grab;
   touch-action: none;
-}
-.pane-grip::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  width: 32px;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--line-hover);
-  opacity: 0;
-  translate: -50% -2px;
   transition:
-    opacity 0.14s ease,
-    translate 0.14s ease,
-    width 0.14s ease;
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
-.pane-grip:hover::after,
-.pane-grip:focus-visible::after,
-.output-pane:has(> .output-toolbar.draggable:hover) .pane-grip::after,
-.dragged .pane-grip::after {
-  opacity: 1;
-  translate: -50% 0;
+.pane-grip[hidden] {
+  display: none;
 }
-.pane-grip:focus-visible {
+.pane-grip-anchor .pane-grip {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+}
+.pane-grip-anchor .pane-grip.grip-start {
+  right: auto;
+  left: 18px;
+}
+/* The toolbar's grip may lead or trail, so the tabs push everything after them right instead of relying on space-between. */
+.output-toolbar > .output-views {
+  margin-right: auto;
+}
+.output-toolbar .pane-grip {
+  order: 1;
+  margin-right: 8px;
+}
+.output-toolbar .pane-grip.grip-start {
+  order: -1;
+  margin-right: 0;
+  margin-left: 8px;
+}
+.pane-grip:hover,
+.pane-grip:focus-visible,
+.dragged .pane-grip {
+  border-color: var(--line);
+  background: var(--subtle-strong);
+  color: var(--ink);
+}
+.pane-grip:focus-visible,
+.dragged .pane-grip {
   outline: none;
-}
-.pane-grip:focus-visible::after,
-.dragged .pane-grip::after {
-  width: 48px;
-  background: var(--accent);
+  border-color: var(--accent-border);
+  color: var(--accent);
 }
 .output-toolbar.draggable {
   cursor: grab;
 }
-.output-toolbar.draggable button {
+.output-toolbar.draggable button:not(.pane-grip) {
   cursor: pointer;
 }
 .editor-shell.pane-moving,
@@ -316,7 +331,6 @@
 .output-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding: 7px 10px;
   border-bottom: 1px solid var(--line-soft);
