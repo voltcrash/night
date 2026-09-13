@@ -313,16 +313,17 @@
 }
 /*
  * The view switcher floats in the pane's top padding, so the note keeps the full height.
- * Every control stays in place for every view; ones that do not apply are dimmed instead of removed.
+ * At rest it shows only the current view; hovering or keyboard focus opens every control, which
+ * always has the same set and size so the open strip never changes shape between views.
  */
 .output-switcher {
+  --switcher-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   position: absolute;
   top: 8px;
   right: 18px;
   z-index: 4;
   display: flex;
   align-items: center;
-  gap: 4px;
   padding: 2px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -336,8 +337,13 @@
   align-items: center;
 }
 .output-actions {
-  padding-left: 4px;
-  border-left: 1px solid var(--line);
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 1px solid transparent;
+  transition:
+    margin-left 0.22s var(--switcher-ease) 0.2s,
+    padding-left 0.22s var(--switcher-ease) 0.2s,
+    border-color 0.16s ease 0.2s;
 }
 .output-views button,
 .output-action {
@@ -346,15 +352,17 @@
   width: 28px;
   height: 28px;
   padding: 0;
+  overflow: hidden;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition:
+    width 0.22s var(--switcher-ease) 0.2s,
+    opacity 0.16s ease 0.2s,
     background 0.15s ease,
-    color 0.15s ease,
-    opacity 0.15s ease;
+    color 0.15s ease;
 }
 .output-views button span,
 .output-action span {
@@ -365,7 +373,23 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.output-views button.active {
+.output-views button:not(.active),
+.output-action {
+  width: 0;
+  opacity: 0;
+}
+.output-switcher:is(:hover, :has(:focus-visible)) :is(.output-views button, .output-action) {
+  width: 28px;
+  opacity: 1;
+  transition-delay: 0s;
+}
+.output-switcher:is(:hover, :has(:focus-visible)) .output-actions {
+  margin-left: 4px;
+  padding-left: 4px;
+  border-color: var(--line);
+  transition-delay: 0s;
+}
+.output-switcher:is(:hover, :has(:focus-visible)) .output-views button.active {
   background: var(--subtle-strong);
   color: var(--ink);
 }
@@ -381,7 +405,15 @@
 }
 .output-action:disabled {
   cursor: not-allowed;
+}
+.output-switcher:is(:hover, :has(:focus-visible)) .output-action:disabled {
   opacity: 0.35;
+}
+@media (prefers-reduced-motion: reduce) {
+  .output-switcher *,
+  .output-actions {
+    transition-duration: 0s !important;
+  }
 }
 .output-code {
   flex: 1;

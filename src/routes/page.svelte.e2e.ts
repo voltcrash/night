@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// The output switcher shows only the current view until it is hovered.
+async function openOutputSwitcher(page: Page): Promise<void> {
+  await page.locator(".output-switcher").hover();
+}
+
 async function blockNextVaultWrite(page: Page): Promise<void> {
   await page.evaluate(() => {
     const prototype = FileSystemFileHandle.prototype;
@@ -419,6 +424,8 @@ test("moves a pane by dragging its grip beside the divider or with the arrow key
   );
   expect(await gripOffset("Move the page pane")).toBeGreaterThan(14);
 
+  await openOutputSwitcher(page);
+
   await page.getByRole("tab", { name: "HTML" }).click();
   await expect(page.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "true");
   await expect(shell).not.toHaveClass(/panes-swapped/);
@@ -436,6 +443,8 @@ test("copies and downloads the Markdown source from the output pane", async ({ p
     });
   });
 
+  await openOutputSwitcher(page);
+
   await page.getByRole("button", { name: "Copy" }).click();
   await expect
     .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
@@ -443,6 +452,7 @@ test("copies and downloads the Markdown source from the output pane", async ({ p
   await expect(page.getByText("Copied this note as Markdown.")).toBeVisible();
 
   const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
   await page.getByRole("button", { name: "Download" }).click();
   expect((await download).suggestedFilename()).toBe("packing-list.md");
 });
@@ -461,9 +471,13 @@ test("shows the note as plain text in the output pane, copies and downloads it",
     });
   });
 
+  await openOutputSwitcher(page);
+
   await page.getByRole("tab", { name: "Plain text" }).click();
   const expected = "Grocery list\n\n- Fresh bread\n- Oats (https://example.com/oats)";
   await expect(page.getByLabel("Plain text")).toHaveText(expected);
+
+  await openOutputSwitcher(page);
 
   await page.getByRole("button", { name: "Copy" }).click();
   await expect
@@ -472,6 +486,7 @@ test("shows the note as plain text in the output pane, copies and downloads it",
   await expect(page.getByText("Copied this note as plain text.")).toBeVisible();
 
   const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
   await page.getByRole("button", { name: "Download" }).click();
   expect((await download).suggestedFilename()).toBe("grocery-list.txt");
 });
@@ -498,10 +513,14 @@ test("shows the formatted note in the output pane, copies it as rich text and do
     });
   });
 
+  await openOutputSwitcher(page);
+
   await page.getByRole("tab", { name: "Rich text" }).click();
   const preview = page.getByLabel("Rich text");
   await expect(preview.locator("h1")).toHaveText("Meeting notes");
   await expect(preview.locator("strong")).toHaveText("Friday");
+
+  await openOutputSwitcher(page);
 
   await page.getByRole("button", { name: "Copy" }).click();
   await expect
@@ -516,6 +535,7 @@ test("shows the formatted note in the output pane, copies it as rich text and do
     });
 
   const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
   await page.getByRole("button", { name: "Download" }).click();
   expect((await download).suggestedFilename()).toBe("meeting-notes.rtf");
 });
@@ -532,10 +552,14 @@ test("shows the generated HTML in the output pane, copies and downloads it", asy
     });
   });
 
+  await openOutputSwitcher(page);
+
   await page.getByRole("tab", { name: "HTML" }).click();
   const html = page.locator(".output-code");
   await expect(html).toContainText('<h1 id="user-content-release-notes">');
   await expect(html).toContainText("<strong>");
+
+  await openOutputSwitcher(page);
 
   await page.getByRole("button", { name: "Copy" }).click();
   await expect
@@ -544,8 +568,11 @@ test("shows the generated HTML in the output pane, copies and downloads it", asy
   await expect(page.getByText("Copied this note as HTML.")).toBeVisible();
 
   const download = page.waitForEvent("download");
+  await openOutputSwitcher(page);
   await page.getByRole("button", { name: "Download" }).click();
   expect((await download).suggestedFilename()).toBe("release-notes.html");
+
+  await openOutputSwitcher(page);
 
   await page.getByRole("tab", { name: "Markdown" }).click();
   await expect(markdown).toHaveValue(/Release notes/);
@@ -563,10 +590,14 @@ test("previews the printed page and prints it from the output pane", async ({ pa
     };
   });
 
+  await openOutputSwitcher(page);
+
   await page.getByRole("tab", { name: "PDF" }).click();
   const sheet = page.locator(".pdf-sheet");
   await expect(sheet.locator("h1")).toHaveText("Field report");
   await expect(page.getByRole("button", { name: "Copy" })).toBeDisabled();
+
+  await openOutputSwitcher(page);
 
   await page.getByRole("button", { name: "Save as PDF" }).click();
   await expect
