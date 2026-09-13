@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { Copy, Download, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CloudOff, Grip, HardDrive, PanelLeft, PencilLine, X } from '@lucide/svelte';
+	import { Copy, Download, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CloudOff, HardDrive, PanelLeft, PencilLine, X } from '@lucide/svelte';
 	import { formatShortcut, type KeyboardShortcuts, type PrimaryModifier } from '$lib';
 	import type { InlinePreviewBehavior } from './settings-dialog.svelte';
 	import type { PaneEdge, PaneLayout, PaneOrder, SaveState, TransferState } from './app-types';
@@ -143,11 +143,6 @@
 		return leads ? 'left' : 'right';
 	}
 
-	// Grips sit in the corner facing the divider, beside the pane handles; stacked panes keep them on the right.
-	function gripAtStart(pane: Pane): boolean {
-		return paneEdge(pane) === 'right';
-	}
-
 	// The moved pane keeps its share of the space, so the preview matches where it settles.
 	let dropSlot = $derived.by(() => {
 		if (!drag?.moving) return undefined;
@@ -253,7 +248,6 @@
 	<section bind:this={shell} class="editor-shell" class:output-hidden={!outputPaneVisible} class:rendered-hidden={!renderedPaneVisible} class:panes-stacked={stacked} class:panes-swapped={swapped} class:first-hidden={!firstPaneVisible} class:second-hidden={!secondPaneVisible} class:resizing class:pane-moving={drag?.moving} style={`--split: ${splitRatio}%; --content-width: ${contentWidth}px`}>
 		<div bind:this={outputPaneElement} class="output-pane" class:dragged={drag?.moving && drag.pane === 'output'} style={drag?.moving && drag.pane === 'output' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined}>
 			<div class="output-toolbar" class:draggable={bothPanesVisible} role="presentation" onpointerdown={(event) => startPaneDrag(event, 'output')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag}>
-				<button type="button" class="pane-grip" class:grip-start={gripAtStart('output')} hidden={!bothPanesVisible} aria-label="Move the output pane" title="Drag to move this pane, or use the arrow keys" onkeydown={(event) => nudgePane(event, 'output')}><Grip size={14} /></button>
 				<div class="output-views" role="tablist" aria-label="Output view">
 					{#each outputViews as view (view.id)}
 						<button role="tab" class:active={outputView === view.id} aria-selected={outputView === view.id} title={view.description} onclick={() => onOutputViewChange(view.id)}><view.icon size={14} /><span>{view.label}</span></button>
@@ -305,6 +299,10 @@
 		</div>
 		<div class="pane-divider">
 			<button type="button" class="pane-resize" class:enabled={bothPanesVisible} aria-label={`Resize the panes, the ${firstPane} pane takes ${Math.round(splitRatio)} percent`} title="Drag to resize, double-click to even out" tabindex={bothPanesVisible ? 0 : -1} onpointerdown={startResize} onpointermove={trackResize} onpointerup={endResize} onpointercancel={endResize} onkeydown={nudgeResize} ondblclick={resetSplit}></button>
+			{#if bothPanesVisible}
+				<button type="button" class="pane-grip" class:grip-start={!swapped} aria-label="Move the output pane" title="Drag to move this pane, or use the arrow keys" onpointerdown={(event) => startPaneDrag(event, 'output')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag} onkeydown={(event) => nudgePane(event, 'output')}></button>
+				<button type="button" class="pane-grip" class:grip-start={swapped} aria-label="Move the page pane" title="Drag to move this pane, or use the arrow keys" onpointerdown={(event) => startPaneDrag(event, 'rendered')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag} onkeydown={(event) => nudgePane(event, 'rendered')}></button>
+			{/if}
 			{#if secondPaneVisible}
 				{@const label = `${firstPaneVisible ? 'Hide' : 'Show'} the ${firstPane} pane`}
 				{@const Icon = firstPaneVisible ? towardsStart : towardsEnd}
@@ -317,9 +315,6 @@
 			{/if}
 		</div>
 		<div bind:this={renderedPaneElement} class="preview-pane" class:dragged={drag?.moving && drag.pane === 'rendered'} style={drag?.moving && drag.pane === 'rendered' ? `translate: ${drag.dx}px ${drag.dy}px; transform-origin: ${drag.originX}px ${drag.originY}px; --lift-scale: ${drag.scale}` : undefined}>
-			<div class="pane-grip-anchor">
-				<button type="button" class="pane-grip" class:grip-start={gripAtStart('rendered')} hidden={!bothPanesVisible} aria-label="Move the page pane" title="Drag to move this pane, or use the arrow keys" onpointerdown={(event) => startPaneDrag(event, 'rendered')} onpointermove={trackPaneDrag} onpointerup={endPaneDrag} onpointercancel={endPaneDrag} onkeydown={(event) => nudgePane(event, 'rendered')}><Grip size={14} /></button>
-			</div>
 			{#if renderedReadOnly}
 				{#if hasContent}
 					<article class="prose">{@html renderedMarkdown}</article>

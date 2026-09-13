@@ -351,27 +351,37 @@ test("keeps both panes synchronized and lets each pane be tucked away", async ({
   await expect(page.locator(".preview-pane")).toBeVisible();
 });
 
-test("moves a pane by dragging its corner grip or with the arrow keys", async ({ page }) => {
+test("moves a pane by dragging its grip beside the divider or with the arrow keys", async ({
+  page,
+}) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
   const shell = page.locator(".editor-shell");
   const panesBox = await shell.boundingBox();
   if (!panesBox) throw new Error("The panes are not laid out");
-  const dividerX = async () => {
+  const gripOffset = async (name: string) => {
     const divider = await page.locator(".pane-divider").boundingBox();
-    if (!divider) throw new Error("The divider is not laid out");
-    return divider.x;
+    const box = await page.getByRole("button", { name }).boundingBox();
+    if (!divider || !box) throw new Error("The divider or grip is not laid out");
+    expect(box.y + box.height / 2).toBeCloseTo(divider.y + divider.height / 2, 0);
+    return box.x + box.width / 2 - divider.x;
   };
+  const leadingOffset = await gripOffset("Move the page pane");
+  expect(leadingOffset).toBeLessThan(-14);
+  expect(leadingOffset).toBeGreaterThan(-40);
+  const trailingOffset = await gripOffset("Move the output pane");
+  expect(trailingOffset).toBeGreaterThan(14);
+  expect(trailingOffset).toBeLessThan(40);
 
-  const grip = await page.getByRole("button", { name: "Move the page pane" }).boundingBox();
+  const gripLocator = page.getByRole("button", { name: "Move the page pane" });
+  const pill = () =>
+    gripLocator.evaluate((element) => getComputedStyle(element, "::after").opacity);
+  expect(await pill()).toBe("0");
+  await gripLocator.hover();
+  await expect.poll(pill).toBe("1");
+
+  const grip = await gripLocator.boundingBox();
   if (!grip) throw new Error("The page pane grip is not laid out");
-  expect(grip.y - panesBox.y).toBeGreaterThanOrEqual(6);
-  expect(grip.x + grip.width).toBeLessThan((await dividerX()) - 12);
-  expect(grip.x).toBeGreaterThan((await dividerX()) - 80);
-  const outputGrip = await page.getByRole("button", { name: "Move the output pane" }).boundingBox();
-  if (!outputGrip) throw new Error("The output pane grip is not laid out");
-  expect(outputGrip.x).toBeGreaterThan((await dividerX()) + 12);
-  expect(outputGrip.x).toBeLessThan((await dividerX()) + 80);
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
   await page.mouse.move(panesBox.x + panesBox.width / 2, panesBox.y + panesBox.height - 20, {
@@ -403,10 +413,7 @@ test("moves a pane by dragging its corner grip or with the arrow keys", async ({
   await page.evaluate(() =>
     Promise.all(document.getAnimations().map((animation) => animation.finished)),
   );
-  const movedGrip = await page.getByRole("button", { name: "Move the page pane" }).boundingBox();
-  if (!movedGrip) throw new Error("The page pane grip is not laid out");
-  expect(movedGrip.x).toBeGreaterThan((await dividerX()) + 12);
-  expect(movedGrip.x).toBeLessThan((await dividerX()) + 80);
+  expect(await gripOffset("Move the page pane")).toBeGreaterThan(14);
 
   await page.getByRole("tab", { name: "HTML" }).click();
   await expect(page.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "true");

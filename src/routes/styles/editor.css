@@ -152,7 +152,7 @@
   width: 46px;
   height: 8px;
 }
-.pane-divider:hover .pane-handle,
+.pane-divider:hover:not(:has(.pane-grip:hover)) .pane-handle,
 .pane-handle:hover,
 .pane-handle:focus-visible {
   width: 24px;
@@ -166,8 +166,8 @@
   color: var(--ink);
 }
 /*
- * Each pane's grip sits in its top corner facing the divider, clear of the window's top edge
- * (which full-screen macOS gives to the menu bar) and a little away from the divider itself.
+ * Each pane's grip is a pill just inside it beside the divider, midway between the pane handles.
+ * It stays clear of the window's top edge, which full-screen macOS gives to the menu bar.
  */
 .output-pane,
 .preview-pane {
@@ -176,72 +176,60 @@
 .output-pane {
   position: relative;
 }
-.pane-grip-anchor {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  height: 0;
-}
 .pane-grip {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 27px;
-  height: 27px;
+  --grip-offset: 22px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  width: 18px;
+  height: 72px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  border: 0;
   background: transparent;
-  color: var(--muted);
   cursor: grab;
   touch-action: none;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
+  translate: calc(-50% + var(--grip-offset)) -50%;
 }
-.pane-grip[hidden] {
-  display: none;
+.pane-grip.grip-start {
+  translate: calc(-50% - var(--grip-offset)) -50%;
 }
-.pane-grip-anchor .pane-grip {
+.panes-stacked .pane-grip {
+  width: 72px;
+  height: 18px;
+  translate: -50% calc(-50% + var(--grip-offset));
+}
+.panes-stacked .pane-grip.grip-start {
+  translate: -50% calc(-50% - var(--grip-offset));
+}
+.pane-grip::after {
+  content: "";
   position: absolute;
-  top: 8px;
-  right: 18px;
+  inset: 14px 7px;
+  border-radius: 999px;
+  background: var(--line-hover);
+  opacity: 0;
+  transition:
+    opacity 0.14s ease,
+    background 0.14s ease;
 }
-.pane-grip-anchor .pane-grip.grip-start {
-  right: auto;
-  left: 18px;
+.panes-stacked .pane-grip::after {
+  inset: 7px 14px;
 }
-/* The toolbar's grip may lead or trail, so the tabs push everything after them right instead of relying on space-between. */
-.output-toolbar > .output-views {
-  margin-right: auto;
+.pane-grip:hover::after,
+.pane-grip:focus-visible::after {
+  opacity: 1;
 }
-.output-toolbar .pane-grip {
-  order: 1;
-  margin-right: 8px;
-}
-.output-toolbar .pane-grip.grip-start {
-  order: -1;
-  margin-right: 0;
-  margin-left: 8px;
-}
-.pane-grip:hover,
-.pane-grip:focus-visible,
-.dragged .pane-grip {
-  border-color: var(--line);
-  background: var(--subtle-strong);
-  color: var(--ink);
-}
-.pane-grip:focus-visible,
-.dragged .pane-grip {
+.pane-grip:focus-visible {
   outline: none;
-  border-color: var(--accent-border);
-  color: var(--accent);
+}
+.pane-grip:focus-visible::after {
+  background: var(--accent);
 }
 .output-toolbar.draggable {
   cursor: grab;
 }
-.output-toolbar.draggable button:not(.pane-grip) {
+.output-toolbar.draggable button {
   cursor: pointer;
 }
 .editor-shell.pane-moving,
@@ -272,7 +260,8 @@
   opacity: 0.55;
   transition: opacity 0.16s ease;
 }
-.pane-moving .pane-handle {
+.pane-moving .pane-handle,
+.pane-moving .pane-grip {
   visibility: hidden;
 }
 /* Shows where the dragged pane will land; it glides between edges as the pointer crosses them. */
@@ -331,6 +320,7 @@
 .output-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 7px 10px;
   border-bottom: 1px solid var(--line-soft);
