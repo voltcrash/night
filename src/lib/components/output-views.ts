@@ -1,13 +1,11 @@
-import { Code2, FileText, Pilcrow, Printer, Type } from "@lucide/svelte";
-import type { Component } from "svelte";
-
 export type OutputView = "markdown" | "text" | "rich-text" | "html" | "pdf";
 
 export interface OutputViewOption {
   id: OutputView;
   label: string;
   description: string;
-  icon: Component;
+  /** The file extension the view exports, shown as its tab. */
+  format: string;
   /** Absent when the view has nothing to copy. */
   copyTitle?: string;
   downloadLabel: string;
@@ -19,7 +17,7 @@ export const outputViews: OutputViewOption[] = [
     id: "markdown",
     label: "Markdown",
     description: "Write and edit the Markdown source",
-    icon: FileText,
+    format: "MD",
     copyTitle: "Copy this note as Markdown",
     downloadLabel: "Download",
     downloadTitle: "Download this note as a Markdown file",
@@ -28,7 +26,7 @@ export const outputViews: OutputViewOption[] = [
     id: "text",
     label: "Plain text",
     description: "Read the note as plain text, then copy or download it",
-    icon: Type,
+    format: "TXT",
     copyTitle: "Copy this note as plain text",
     downloadLabel: "Download",
     downloadTitle: "Download this note as a text file",
@@ -37,7 +35,7 @@ export const outputViews: OutputViewOption[] = [
     id: "rich-text",
     label: "Rich text",
     description: "Copy the formatted note into a document, or download it as RTF",
-    icon: Pilcrow,
+    format: "RTF",
     copyTitle: "Copy this note with its formatting, to paste into a document or email",
     downloadLabel: "Download",
     downloadTitle: "Download this note as an RTF document",
@@ -46,7 +44,7 @@ export const outputViews: OutputViewOption[] = [
     id: "html",
     label: "HTML",
     description: "Read the generated HTML, then copy or download it",
-    icon: Code2,
+    format: "HTML",
     copyTitle: "Copy this note as HTML",
     downloadLabel: "Download",
     downloadTitle: "Download this note as an HTML file",
@@ -55,7 +53,7 @@ export const outputViews: OutputViewOption[] = [
     id: "pdf",
     label: "PDF",
     description: "Preview the printed page and save it as a PDF",
-    icon: Printer,
+    format: "PDF",
     downloadLabel: "Save as PDF",
     downloadTitle: "Print this note, or save it as a PDF from the print dialog",
   },

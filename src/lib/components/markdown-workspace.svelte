@@ -245,7 +245,7 @@
 			<div class="output-switcher">
 				<div class="output-views" role="tablist" aria-label="Output view">
 					{#each outputViews as view (view.id)}
-						<button role="tab" class:active={outputView === view.id} aria-selected={outputView === view.id} title={view.description} onclick={() => onOutputViewChange(view.id)}><view.icon size={14} /><span>{view.label}</span></button>
+						<button role="tab" class:active={outputView === view.id} aria-selected={outputView === view.id} title={view.description} onclick={() => onOutputViewChange(view.id)}><b class="output-format" aria-hidden="true">{view.format}</b><span>{view.label}</span></button>
 					{/each}
 				</div>
 				<div class="output-actions">
