@@ -147,6 +147,35 @@ export function renderMarkdownTree(source: string): MarkdownTreeNode {
   return processor.runSync(processor.parse(source)) as MarkdownTreeNode;
 }
 
+export function titleFromMarkdown(value: string, fallback = "Untitled"): string {
+  const firstLine =
+    stripFrontmatter(value)
+      .split("\n")
+      .find((line) => line.trim())
+      ?.trim() ?? "";
+  const title = firstLine
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/[*_`~[\]]/g, "")
+    .trim();
+  return title.slice(0, 80) || fallback;
+}
+
+function stripFrontmatter(value: string): string {
+  const lines = value.split(/\r?\n/);
+  let firstContentLine = 0;
+  while (firstContentLine < lines.length && !lines[firstContentLine]!.trim()) firstContentLine += 1;
+  const opening = lines[firstContentLine]?.trim();
+  if (opening !== "---" && opening !== "+++") return value;
+
+  for (let index = firstContentLine + 1; index < lines.length; index += 1) {
+    const line = lines[index]!.trim();
+    if (line === opening || (opening === "---" && line === "...")) {
+      return lines.slice(index + 1).join("\n");
+    }
+  }
+  return value;
+}
+
 function markdownProcessor() {
   return (
     unified()

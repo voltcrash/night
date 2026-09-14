@@ -297,6 +297,19 @@ test("searches note titles and Markdown content", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Project Aurora/ })).toBeVisible();
 });
 
+test("uses the first Markdown heading for notes with front matter", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+
+  await markdown.fill("---\ntitle: Metadata title\n---\n\n# Rendered title");
+
+  await expect(page.getByRole("button", { name: "Rendered title", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.getByRole("button", { name: "Turn on read-only" }).click();
+  await expect(page.locator(".preview-pane h1")).toHaveText("Rendered title");
+});
+
 test("formats Markdown while editing in the page pane", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();

@@ -5,6 +5,7 @@ import {
   type SearchPosting,
 } from "./database.js";
 import { detectBrowserStorageSupport } from "../browser-storage.js";
+import { titleFromMarkdown } from "../markdown.js";
 import { VaultCoordination } from "./coordination.js";
 import { MirroredVaultFilesystem, VaultFilesystem } from "./filesystem.js";
 import type {
@@ -824,19 +825,6 @@ function restoreOperation(
     revision: 1,
     createdAt: restoredAt,
   };
-}
-
-function titleFromMarkdown(value: string): string {
-  const firstLine =
-    value
-      .split("\n")
-      .find((line) => line.trim())
-      ?.trim() ?? "";
-  const title = firstLine
-    .replace(/^#{1,6}\s*/, "")
-    .replace(/[*_`~[\]]/g, "")
-    .trim();
-  return title.slice(0, 80) || "Untitled";
 }
 
 function assertBrowser(): void {

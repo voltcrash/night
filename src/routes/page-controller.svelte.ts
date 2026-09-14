@@ -44,6 +44,7 @@ import {
   renderMarkdown,
   renderMarkdownBlocks,
   resolveLocalAttachmentUrl,
+  titleFromMarkdown,
   type LocalAttachmentUrl,
 } from "$lib/markdown";
 import {
@@ -2009,19 +2010,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     event.preventDefault();
     const next = event.key === "ArrowDown" ? current + 1 : current - 1;
     files[(next + files.length) % files.length]?.focus();
-  }
-
-  function titleFromMarkdown(value: string): string {
-    const firstLine =
-      value
-        .split("\n")
-        .find((line) => line.trim())
-        ?.trim() ?? "";
-    const title = firstLine
-      .replace(/^#{1,6}\s*/, "")
-      .replace(/[*_`~[\]]/g, "")
-      .trim();
-    return title.slice(0, 80) || "Untitled";
   }
 
   function renderLiveLine(line: string, index: number): string {

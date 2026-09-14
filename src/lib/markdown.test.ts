@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { renderMarkdown, renderMarkdownBlocks, resolveLocalAttachmentUrl } from "./markdown.js";
+import {
+  renderMarkdown,
+  renderMarkdownBlocks,
+  resolveLocalAttachmentUrl,
+  titleFromMarkdown,
+} from "./markdown.js";
+
+describe("titleFromMarkdown", () => {
+  it("ignores YAML and TOML front matter", () => {
+    expect(titleFromMarkdown("---\ntitle: Hidden\n---\n\n# Heading")).toBe("Heading");
+    expect(titleFromMarkdown("+++\ntitle = 'Hidden'\n+++\n\nBody")).toBe("Body");
+  });
+
+  it("supports YAML's alternate closing marker", () => {
+    expect(titleFromMarkdown("---\ntitle: Hidden\n...\n\n# Heading")).toBe("Heading");
+  });
+});
 
 describe("renderMarkdown", () => {
   it("renders CommonMark structure and GFM extensions", () => {
