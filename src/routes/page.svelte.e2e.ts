@@ -92,6 +92,26 @@ test("traps modal focus and returns it to the opener", async ({ page }) => {
   await expect(palette).toBeFocused();
 });
 
+test("opens general settings on Editor and the storage shortcut on Storage choices", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Editor", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("heading", { name: "Editor", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Close settings" }).click();
+  await page.getByRole("button", { name: "Open local storage settings" }).click();
+  await expect(page.getByRole("button", { name: "Storage choices", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+});
+
 test("persists edits made while an earlier save is still in flight", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "Markdown editor" });
