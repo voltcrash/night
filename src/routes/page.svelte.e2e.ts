@@ -634,6 +634,53 @@ test("keeps drag selection continuous across formatted rendered blocks", async (
     .toMatchObject({ anchorLine: "0", focusLine: "4" });
 });
 
+test("keeps list markers inside rendered selections", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "### Tasks\n\n- A regular item\n- [x] A checked item\n- [ ] An open item";
+  await markdown.fill(source);
+
+  await setRenderedSelection(page, 2, 0, 4, source.split("\n")[4]!.length);
+
+  const selectedLines = page.locator(".live-editing-overlay [data-live-line].selection-active");
+  await expect(selectedLines).toHaveCount(3);
+  const listGeometry = await page.evaluate(() => {
+    const editable = [
+      ...document.querySelectorAll<HTMLElement>(".live-editing-overlay [data-live-line]"),
+    ].slice(2, 5);
+    const listRect = document
+      .querySelector<HTMLElement>(".live-rendered-content ul")!
+      .getBoundingClientRect();
+    const rendered = [...document.querySelectorAll<HTMLElement>(".live-rendered-content li")];
+    return editable.map((line, index) => {
+      const lineRect = line.getBoundingClientRect();
+      const itemRect = rendered[index]!.getBoundingClientRect();
+      return { dx: lineRect.left - listRect.left, dy: lineRect.top - itemRect.top };
+    });
+  });
+  for (const geometry of listGeometry) {
+    expect(Math.abs(geometry.dx)).toBeLessThan(1);
+    expect(Math.abs(geometry.dy)).toBeLessThan(1);
+  }
+  await expect
+    .poll(() =>
+      page
+        .locator('.live-editing-overlay [data-live-line="2"] .live-list-marker')
+        .evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .not.toBe("rgba(0, 0, 0, 0)");
+  for (const line of [3, 4]) {
+    await expect
+      .poll(() =>
+        page
+          .locator(`.live-editing-overlay [data-live-line="${line}"] .live-task-check`)
+          .evaluate((element) => getComputedStyle(element).backgroundColor),
+      )
+      .not.toBe("rgba(0, 0, 0, 0)");
+  }
+});
+
 test("triple-click selects a complete rendered Markdown line", async ({ page }) => {
   await page.goto("/");
   const markdown = page.getByRole("textbox", { name: "Markdown editor" });

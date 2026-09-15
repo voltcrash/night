@@ -113,6 +113,19 @@
 			const width = blockRect.width;
 			const blockHeight = blockRect.height;
 			const blockLines = markdownLines.slice(start, end);
+			const listItems = block.matches('ul, ol') ? [...block.querySelectorAll<HTMLElement>('li')] : [];
+			if (listItems.length === end - start) {
+				listItems.forEach((item, offset) => {
+					const itemRect = item.getBoundingClientRect();
+					rects[start + offset] = {
+						top: itemRect.top - containerRect.top,
+						left,
+						width,
+						height: itemRect.height,
+					};
+				});
+				return;
+			}
 			const contentLines = block.tagName === 'PRE' ? blockLines.filter((line) => !isFenceLine(line)) : [];
 
 			if (contentLines.length) {
@@ -145,6 +158,30 @@
 		return rect
 			? `top: ${rect.top}px; left: ${rect.left}px; width: ${rect.width}px; height: ${rect.height}px`
 			: undefined;
+	}
+
+	function syncLiveSelectionDecorations(): void {
+		if (!liveEditorContainer || renderedReadOnly) return;
+		const selection = document.getSelection();
+		const range = selection && !selection.isCollapsed && selection.rangeCount > 0 ? selection.getRangeAt(0) : undefined;
+		const overlay = liveEditorContainer.querySelector<HTMLElement>('.live-editing-overlay');
+		const selectionInOverlay = Boolean(
+			range &&
+			overlay &&
+			overlay.contains(selection?.anchorNode ?? null) &&
+			overlay.contains(selection?.focusNode ?? null),
+		);
+		liveEditorContainer.querySelectorAll<HTMLElement>('[data-live-line]').forEach((line) => {
+			let selected = false;
+			if (selectionInOverlay && range) {
+				try {
+					selected = range.intersectsNode(line);
+				} catch {
+					selected = false;
+				}
+			}
+			line.classList.toggle('selection-active', selected);
+		});
 	}
 
 	function resizeTo(event: PointerEvent): void {
@@ -396,6 +433,14 @@
 		const observer = new ResizeObserver(measureLiveLines);
 		observer.observe(liveEditorContainer);
 		return () => observer.disconnect();
+	});
+
+	$effect(() => {
+		if (!liveEditorContainer || renderedReadOnly) return;
+		const syncSelection = () => syncLiveSelectionDecorations();
+		document.addEventListener('selectionchange', syncSelection);
+		syncSelection();
+		return () => document.removeEventListener('selectionchange', syncSelection);
 	});
 
 	$effect(() => {

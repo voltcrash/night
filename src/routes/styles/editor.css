@@ -1141,6 +1141,7 @@
   border-color: var(--line-hover);
   background: var(--line-hover);
   color: var(--on-solid);
+  vertical-align: 2.5px;
 }
 .live-editor.prose .live-task-check.done::before {
   content: "✓";
@@ -1322,6 +1323,13 @@
   border-color: transparent !important;
   text-decoration-color: transparent !important;
   -webkit-text-fill-color: transparent;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line.selection-active .live-list-marker,
+.live-editor.prose .live-editing-overlay .live-editable-line.selection-active .live-task-check {
+  background: color-mix(in srgb, var(--selection) 50%, var(--surface)) !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line.selection-active .live-task-check {
+  border-color: color-mix(in srgb, var(--selection) 50%, var(--surface)) !important;
 }
 .live-editor.prose .live-editing-overlay .live-editable-line::selection,
 .live-editor.prose .live-editing-overlay .live-editable-line *::selection {
