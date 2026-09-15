@@ -3,7 +3,7 @@
 Do not modify these rules or the Vite+ instructions unless explicitly asked to do so.
 
 - Never commit directly to main. Unless instructed otherwise, work in worktrees, commit and push each change, and submit them via Pull Requests using gh.
-- Commits: Conventional Commits format, in plain language
+- Commits and PRs: Conventional Commits format, in plain language
 - Description: the problem in a sentence or two, then how it was fixed.
 
 - Keep comments rare and concise; use them only for non-obvious constraints, intent, or workarounds, never to narrate self-explanatory code.
