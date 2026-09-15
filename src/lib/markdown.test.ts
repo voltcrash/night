@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  highlightCodeLines,
   renderMarkdown,
   renderMarkdownBlocks,
   resolveLocalAttachmentUrl,
@@ -178,6 +179,14 @@ A footnote[^1] and math $a^2$.
     expect(highlighted).toContain('<span class="hljs-keyword">const</span>');
     expect(highlighted).toContain('<span class="hljs-number">42</span>');
     expect(plain).toBe("<pre><code>const answer = 42;\n</code></pre>");
+  });
+
+  it("keeps highlighted tokens available one line at a time for live preview", () => {
+    const lines = highlightCodeLines("/* first line\nsecond line */", "js");
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('<span class="hljs-comment">/* first line</span>');
+    expect(lines[1]).toContain('<span class="hljs-comment">second line */</span>');
   });
 });
 

@@ -108,6 +108,18 @@ export function renderMarkdown(
     .join("");
 }
 
+/** Highlights a fenced block and returns HTML for each code line, preserving token spans across lines. */
+export function highlightCodeLines(source: string, language: string): string[] {
+  const normalizedLanguage = language.trim().split(/\s+/)[0] ?? "";
+  if (!normalizedLanguage) return source.split("\n").map(escapeHtml);
+
+  const marker = "`".repeat(Math.max(3, longestBacktickRun(source) + 1));
+  const rendered = renderMarkdown(`${marker}${normalizedLanguage}\n${source}\n${marker}`);
+  const inner = rendered.match(/^<pre><code(?:\s[^>]*)?>([\s\S]*)<\/code><\/pre>$/)?.[1];
+  if (inner === undefined) return source.split("\n").map(escapeHtml);
+  return splitHighlightedLines(inner.endsWith("\n") ? inner.slice(0, -1) : inner);
+}
+
 /**
  * Renders a note as its top-level nodes, which join into the HTML of `renderMarkdown`. Elements
  * carry the lines they came from, so views of the note can be lined up with its source.
@@ -198,6 +210,59 @@ function markdownProcessor() {
 
 function noHandler(): undefined {
   return undefined;
+}
+
+function longestBacktickRun(value: string): number {
+  let longest = 0;
+  for (const match of value.matchAll(/`+/g)) longest = Math.max(longest, match[0].length);
+  return longest;
+}
+
+function splitHighlightedLines(value: string): string[] {
+  const lines: string[] = [];
+  const openTags: string[] = [];
+  const tags = /<\/?span(?:\s[^>]*)?>/gi;
+  let line = "";
+  let cursor = 0;
+
+  const appendText = (text: string): void => {
+    let start = 0;
+    let newline = text.indexOf("\n", start);
+    while (newline !== -1) {
+      line += text.slice(start, newline);
+      line += openTags
+        .map(() => "</span>")
+        .reverse()
+        .join("");
+      lines.push(line);
+      line = openTags.join("");
+      start = newline + 1;
+      newline = text.indexOf("\n", start);
+    }
+    line += text.slice(start);
+  };
+
+  for (const match of value.matchAll(tags)) {
+    const start = match.index ?? 0;
+    appendText(value.slice(cursor, start));
+    const tag = match[0];
+    line += tag;
+    if (tag.startsWith("</")) openTags.pop();
+    else openTags.push(tag);
+    cursor = start + tag.length;
+  }
+  appendText(value.slice(cursor));
+  lines.push(line);
+  return lines;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 // Sanitizing rewrites every id to avoid DOM clobbering; hash links have to follow it.

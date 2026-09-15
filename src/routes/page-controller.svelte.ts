@@ -41,6 +41,7 @@ import type {
 import { isOutputView, type OutputView } from "$lib/components/output-views";
 import type { InlinePreviewBehavior, SettingsSection } from "$lib/components/settings-types";
 import {
+  highlightCodeLines,
   renderMarkdown,
   renderMarkdownBlocks,
   resolveLocalAttachmentUrl,
@@ -262,6 +263,51 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       else if (closesFence) fence = "";
       return codeLine;
     });
+  });
+  const liveCodeLanguages = $derived.by(() => {
+    let fence = "";
+    let language = "";
+    return markdownLines.map((line) => {
+      const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+      const marker = match?.[1] ?? "";
+      const info = match?.[2]?.trim().split(/\s+/)[0] ?? "";
+      const closesFence = Boolean(fence && marker.startsWith(fence));
+      const codeLine = Boolean(fence || marker);
+      const lineLanguage = fence ? language : info;
+      if (!fence && marker) {
+        fence = marker;
+        language = info;
+      } else if (closesFence) {
+        fence = "";
+        language = "";
+      }
+      return codeLine ? lineLanguage : "";
+    });
+  });
+  const liveCodeHighlights = $derived.by(() => {
+    const highlights = new Map<number, string>();
+    let start = -1;
+    let language = "";
+    const flush = (end: number): void => {
+      if (start < 0) return;
+      highlightCodeLines(markdownLines.slice(start, end).join("\n"), language).forEach(
+        (line, offset) => highlights.set(start + offset, line),
+      );
+      start = -1;
+    };
+
+    markdownLines.forEach((line, index) => {
+      if (liveCodeLines[index] && !isFenceLine(line)) {
+        if (start < 0) {
+          start = index;
+          language = liveCodeLanguages[index] ?? "";
+        }
+      } else {
+        flush(index);
+      }
+    });
+    flush(markdownLines.length);
+    return highlights;
   });
   const notePageCount = $derived(Math.max(1, Math.ceil(results.length / NOTE_PAGE_SIZE)));
   const visibleResults = $derived(
@@ -2013,13 +2059,18 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   }
 
   function renderLiveLine(line: string, index: number): string {
-    const inCode = liveCodeLines[index] && !isFenceLine(line);
-    const cacheKey = `${inCode ? "code" : "markdown"}\0${line}`;
+    const inCode = Boolean(liveCodeLines[index] && !isFenceLine(line));
+    if (inCode) {
+      const language = liveCodeLanguages[index] ?? "";
+      const highlighted = liveCodeHighlights.get(index) ?? escapeHtml(line);
+      const className = language ? ` class="hljs language-${escapeHtml(language)}"` : "";
+      return `<pre><code${className}>${highlighted || " "}</code></pre>`;
+    }
+
+    const cacheKey = `markdown\0${line}`;
     const cached = liveRenderCache.get(cacheKey);
     if (cached !== undefined) return cached;
-    const rendered = inCode
-      ? `<pre><code>${escapeHtml(line) || " "}</code></pre>`
-      : renderMarkdown(line, resolveAttachmentUrl);
+    const rendered = renderMarkdown(line, resolveAttachmentUrl);
     if (liveRenderCache.size >= 1_000) {
       liveRenderCache.delete(liveRenderCache.keys().next().value ?? "");
     }
@@ -2107,9 +2158,8 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   function renderEditableLine(line: string, index: number): string {
     const kind = liveLineKind(line, index);
     if (kind.includes("code-line")) {
-      return isFenceLine(line)
-        ? `<span class="md-syntax">${escapeHtml(line)}</span>`
-        : escapeHtml(line) || "<br>";
+      if (isFenceLine(line)) return `<span class="md-syntax">${escapeHtml(line)}</span>`;
+      return liveCodeHighlights.get(index) || "<br>";
     }
     const table = tableLineKind(index);
     if (table && table !== "separator") {

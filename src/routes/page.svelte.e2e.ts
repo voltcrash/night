@@ -353,6 +353,8 @@ test("keeps the editable page preview aligned with read-only rendering", async (
   await expect(live.locator(".live-table-row.header")).toBeVisible();
   await expect(live.locator(".live-table-row.body")).toBeVisible();
   await expect(live.locator(".live-editable-line.code-content")).toHaveText("const value = 42;");
+  await expect(live.locator(".live-editable-line.code-content .hljs-keyword")).toHaveText("const");
+  await expect(live.locator(".live-editable-line.code-content .hljs-number")).toHaveText("42");
   await page.locator(".preview-pane").evaluate((pane) => {
     pane.scrollTop = 0;
     pane.querySelector<HTMLElement>(".live-editor")!.scrollTop = 0;
