@@ -782,6 +782,19 @@ kbd {
 .phosphor-preview i:last-child {
   background: #72e06a;
 }
+.marigold-preview {
+  border-color: #ddcea5;
+  background: #fff9e8;
+}
+.marigold-preview i:first-child {
+  background: #f8f0da;
+}
+.marigold-preview i:nth-child(2) {
+  background: #4a3a13;
+}
+.marigold-preview i:last-child {
+  background: #b97800;
+}
 .espresso-preview {
   border-color: #d4c5b7;
   background: #f7f3ee;

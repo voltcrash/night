@@ -7,6 +7,7 @@ export type ColorTheme =
   | "monochrome"
   | "ocean"
   | "phosphor"
+  | "marigold"
   | "espresso"
   | "ink"
   | "lavender"
@@ -19,8 +20,13 @@ export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; h
   { id: "ocean", label: "Ocean", hint: "Cool blue-gray surfaces with a clear teal accent." },
   {
     id: "phosphor",
-    label: "Phosphor",
-    hint: "Graphite surfaces with a vivid terminal-green accent.",
+    label: "Forest",
+    hint: "Graphite surfaces with a vivid evergreen accent.",
+  },
+  {
+    id: "marigold",
+    label: "Marigold",
+    hint: "Golden paper with a sunny ochre accent.",
   },
   {
     id: "espresso",
@@ -54,6 +60,7 @@ const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   monochrome: { light: "#ffffff", dark: "#000000" },
   ocean: { light: "#f8fcfd", dark: "#14242c" },
   phosphor: { light: "#f7faf7", dark: "#1a1f1a" },
+  marigold: { light: "#fff9e8", dark: "#2b2410" },
   espresso: { light: "#f7f3ee", dark: "#261e1b" },
   ink: { light: "#f8fbff", dark: "#16233a" },
   lavender: { light: "#fbfaff", dark: "#211a2a" },

@@ -549,6 +549,106 @@
   --on-solid: #111411;
 }
 
+:root[data-color-theme="marigold"] {
+  color-scheme: light;
+
+  --ink: #4a3a13;
+  --ink-strong: #352807;
+  --ink-body: #5a4618;
+  --ink-soft: #806d39;
+  --muted: #9b8a5f;
+  --faint: #c0b28e;
+
+  --canvas: #f4edd8;
+  --paper: #fff9e8;
+  --surface: #fffdf7;
+  --surface-soft: #fbf4df;
+  --sidebar: #f8f0da;
+  --editor: #fffaf0;
+  --subtle: #f2e8c9;
+  --subtle-strong: #e9dbb1;
+  --chip: #e9dbb1;
+  --selected: #e1cf9d;
+
+  --line-soft: #eadfbe;
+  --line: #ddcea5;
+  --line-strong: #ccb88a;
+  --line-hover: #b59a61;
+
+  --accent: #b97800;
+  --accent-strong: #9a6000;
+  --accent-quiet: #9b731c;
+  --accent-link: #986000;
+  --accent-underline: #d3b56d;
+  --accent-border: #d6b866;
+  --accent-bg: #fff8df;
+  --accent-bg-strong: #f9edc4;
+  --focus-border: #c89f3b;
+  --focus-ring: #f3e5b8;
+  --selection: #f2d77d;
+
+  --inverse-bg: #4b3a10;
+  --inverse-border: #6d5720;
+  --inverse-hover: #806a2c;
+  --inverse-text: #fffbea;
+  --inverse-muted: #ebdcae;
+  --code-bg: #2d260f;
+  --code-text: #fff3c4;
+
+  --solid-bg: #4a3a13;
+  --on-solid: #fffdf2;
+}
+
+:root[data-color-theme="marigold"][data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #f1e5b9;
+  --ink-strong: #fff8df;
+  --ink-body: #e5d8a8;
+  --ink-soft: #c7b982;
+  --muted: #a99a6c;
+  --faint: #796d47;
+
+  --canvas: #1b180d;
+  --paper: #2b2410;
+  --surface: #332b13;
+  --surface-soft: #3a3117;
+  --sidebar: #211d0f;
+  --editor: #302811;
+  --subtle: #403619;
+  --subtle-strong: #4b3f20;
+  --chip: #4b3f20;
+  --selected: #5a4b24;
+
+  --line-soft: #473b20;
+  --line: #5a4c28;
+  --line-strong: #6b5a32;
+  --line-hover: #8c7848;
+
+  --accent: #f0c84b;
+  --accent-strong: #ffd866;
+  --accent-quiet: #f5d777;
+  --accent-link: #f3ce5d;
+  --accent-underline: #9e812f;
+  --accent-border: #9b7a29;
+  --accent-bg: #392f10;
+  --accent-bg-strong: #493a14;
+  --focus-border: #c9a83e;
+  --focus-ring: #5d4c1d;
+  --selection: #6a571f;
+
+  --inverse-bg: #f2e5b9;
+  --inverse-border: #d4c38e;
+  --inverse-hover: #e4d49f;
+  --inverse-text: #2b2410;
+  --inverse-muted: #665833;
+  --code-bg: #171307;
+  --code-text: #f3e4ab;
+
+  --solid-bg: #f2e5b9;
+  --on-solid: #2b2410;
+}
+
 :root[data-color-theme="espresso"] {
   color-scheme: light;
 
