@@ -74,7 +74,7 @@
 		plainTextBlocks={page.plainTextBlocks}
 		htmlSource={page.htmlSource}
 		htmlSourceBlocks={page.htmlSourceBlocks}
-		renderedBlockLines={page.renderedBlockLines}
+		renderedBlockLines={page.liveRenderedBlockLines}
 		renderedReadOnly={page.renderedReadOnly}
 		markdown={page.markdown}
 		markdownLines={page.markdownLines}
@@ -82,7 +82,7 @@
 		saveState={page.saveState}
 		transferState={page.transferState}
 		hasContent={page.hasContent}
-		renderedMarkdown={page.renderedMarkdown}
+		renderedMarkdown={page.liveRenderedMarkdown}
 		shortcuts={page.shortcuts}
 		primaryModifier={page.primaryModifier}
 		bind:editor={page.editor}

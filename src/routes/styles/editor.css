@@ -1278,3 +1278,54 @@
     padding: 36px 25px 80px;
   }
 }
+
+/* The visible page is shared with read-only mode; these transparent controls only provide editing. */
+.live-editor.prose {
+  position: relative;
+}
+.live-rendered-content {
+  position: relative;
+  z-index: 1;
+}
+.live-editing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  font: 17px / 1.76 var(--font-content) !important;
+  pointer-events: auto;
+  caret-color: var(--ink);
+  -webkit-text-fill-color: transparent;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line::before {
+  content: none !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line.code-content {
+  font-family: var(--font-code) !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line * {
+  color: transparent !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  text-decoration-color: transparent !important;
+  -webkit-text-fill-color: transparent;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line::selection {
+  color: transparent;
+  background: transparent;
+}

@@ -358,6 +358,7 @@ test("keeps the editable page preview aligned with read-only rendering", async (
   await expect(live.locator('.live-editable-line.code-end[data-code-language="TS"]')).toHaveCount(
     1,
   );
+  const editableMarkup = await live.locator(".live-rendered-content").innerHTML();
   await page.locator(".preview-pane").evaluate((pane) => {
     pane.scrollTop = 0;
     pane.querySelector<HTMLElement>(".live-editor")!.scrollTop = 0;
@@ -398,6 +399,7 @@ test("keeps the editable page preview aligned with read-only rendering", async (
   await page.getByRole("tab", { name: "Tools" }).click();
   await page.getByRole("button", { name: "Turn on read-only" }).click();
   const article = page.locator(".preview-pane article.prose");
+  expect(await article.innerHTML()).toBe(editableMarkup);
   await expect(article.locator("table")).toBeVisible();
   await expect(article.locator("ul")).toHaveCSS("list-style-type", "disc");
   await expect(article.locator("ol")).toHaveCSS("list-style-type", "decimal");

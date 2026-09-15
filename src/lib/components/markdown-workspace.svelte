@@ -79,6 +79,69 @@
 	let towardsStart = $derived(stacked ? ChevronUp : ChevronLeft);
 	let towardsEnd = $derived(stacked ? ChevronDown : ChevronRight);
 	let activeView = $derived(outputViews.find((view) => view.id === outputView) ?? outputViews[0]);
+	type LiveLineRect = { top: number; left: number; width: number; height: number };
+	let liveLineRects = $state<LiveLineRect[]>([]);
+
+	function isFenceLine(line: string): boolean {
+		return /^\s*(?:`{3,}|~{3,})/.test(line);
+	}
+
+	function measureLiveLines(): void {
+		if (!liveEditorContainer || renderedReadOnly) {
+			liveLineRects = [];
+			return;
+		}
+		const renderedContent = liveEditorContainer.querySelector<HTMLElement>('.live-rendered-content');
+		if (!renderedContent) return;
+		const containerRect = liveEditorContainer.getBoundingClientRect();
+		const rects: Array<LiveLineRect | undefined> = Array.from({ length: markdownLines.length });
+		const renderedBlocks = [...renderedContent.children] as HTMLElement[];
+
+		renderedBlocks.forEach((block, blockIndex) => {
+			const lines = renderedBlockLines[blockIndex];
+			if (!lines) return;
+			const start = Math.max(0, lines.start);
+			const end = Math.min(markdownLines.length, lines.end);
+			if (start >= end) return;
+			const blockRect = block.getBoundingClientRect();
+			const top = blockRect.top - containerRect.top;
+			const left = blockRect.left - containerRect.left;
+			const width = blockRect.width;
+			const blockHeight = blockRect.height;
+			const blockLines = markdownLines.slice(start, end);
+			const contentLines = block.tagName === 'PRE' ? blockLines.filter((line) => !isFenceLine(line)) : [];
+
+			if (contentLines.length) {
+				const contentHeight = blockHeight / contentLines.length;
+				let contentIndex = 0;
+				blockLines.forEach((line, offset) => {
+					const index = start + offset;
+					if (isFenceLine(line)) {
+						rects[index] = { top: offset === 0 ? top : top + blockHeight, left, width, height: 0 };
+						return;
+					}
+					rects[index] = { top: top + contentIndex * contentHeight, left, width, height: contentHeight };
+					contentIndex += 1;
+				});
+				return;
+			}
+
+			const lineHeight = blockHeight / (end - start);
+			for (let index = start; index < end; index += 1) {
+				rects[index] = { top: top + (index - start) * lineHeight, left, width, height: lineHeight };
+			}
+		});
+
+		const contentWidth = renderedContent.getBoundingClientRect().width;
+		liveLineRects = rects.map((rect) => rect ?? { top: 0, left: 0, width: contentWidth, height: 0 });
+	}
+
+	function liveLineStyle(index: number): string | undefined {
+		const rect = liveLineRects[index];
+		return rect
+			? `top: ${rect.top}px; left: ${rect.left}px; width: ${rect.width}px; height: ${rect.height}px`
+			: undefined;
+	}
 
 	function resizeTo(event: PointerEvent): void {
 		const bounds = shell?.getBoundingClientRect();
@@ -240,7 +303,12 @@
 	function paneAnchors(pane: Pane, scroller: HTMLElement): ScrollAnchor[] {
 		let points: ScrollAnchor[];
 		if (pane === 'rendered') {
-			points = !renderedReadOnly && liveEditorContainer ? elementAnchors(scroller, [...liveEditorContainer.children].map((element, index) => [element, { start: index, end: index + 1 }])) : proseAnchors(scroller);
+			points = !renderedReadOnly && liveEditorContainer
+				? elementAnchors(
+						scroller,
+						[...liveEditorContainer.querySelectorAll<HTMLElement>('[data-live-line]')].map((element, index) => [element, { start: index, end: index + 1 }]),
+					)
+				: proseAnchors(scroller);
 		} else if (scroller instanceof HTMLTextAreaElement) {
 			points = textareaAnchors(scroller);
 		} else if (outputView === 'text') {
@@ -306,6 +374,24 @@
 	$effect(() => {
 		void [markdown, renderedMarkdown, bothPanesVisible, stacked, contentWidth];
 		tick().then(() => queueScrollSync(leadingPane()));
+	});
+
+	$effect(() => {
+		void [markdown, renderedMarkdown, renderedReadOnly, contentWidth, markdownLines.length];
+		if (renderedReadOnly || !liveEditorContainer) {
+			liveLineRects = [];
+			return;
+		}
+		measureLiveLines();
+		const frame = requestAnimationFrame(measureLiveLines);
+		return () => cancelAnimationFrame(frame);
+	});
+
+	$effect(() => {
+		if (!liveEditorContainer || renderedReadOnly) return;
+		const observer = new ResizeObserver(measureLiveLines);
+		observer.observe(liveEditorContainer);
+		return () => observer.disconnect();
 	});
 
 	$effect(() => {
@@ -403,9 +489,12 @@
 				{/if}
 			{:else}
 				<div class="live-editor prose" bind:this={liveEditorContainer} aria-label="Page editor">
-					{#each markdownLines as line, index}
-						<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
-					{/each}
+					<div class="live-rendered-content" aria-hidden="true">{@html renderedMarkdown}</div>
+					<div class="live-editing-overlay">
+						{#each markdownLines as line, index}
+							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} style={liveLineStyle(index)} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
+						{/each}
+					</div>
 				</div>
 			{/if}
 		</div>

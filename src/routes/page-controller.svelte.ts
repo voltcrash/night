@@ -245,6 +245,11 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   const renderedBlockLines = $derived(
     renderedBlocks.filter((block) => block.element).map((block) => block.lines),
   );
+  const liveRenderedBlocks = $derived(renderMarkdownBlocks(markdown, resolveAttachmentUrl));
+  const liveRenderedMarkdown = $derived(liveRenderedBlocks.map((block) => block.html).join(""));
+  const liveRenderedBlockLines = $derived(
+    liveRenderedBlocks.filter((block) => block.element).map((block) => block.lines),
+  );
   const plainTextBlocks = $derived(notePlainTextBlocks(markdown));
   const plainText = $derived(joinTextBlocks(plainTextBlocks, PLAIN_TEXT_SEPARATOR));
   const htmlSourceBlocks = $derived(formatHtmlBlocks(renderedBlocks));
@@ -2402,6 +2407,12 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     },
     get renderedBlockLines() {
       return renderedBlockLines;
+    },
+    get liveRenderedMarkdown() {
+      return liveRenderedMarkdown;
+    },
+    get liveRenderedBlockLines() {
+      return liveRenderedBlockLines;
     },
     get plainTextBlocks() {
       return plainTextBlocks;
