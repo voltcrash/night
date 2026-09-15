@@ -1671,7 +1671,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   function activateLiveLine(line: number, position?: number): void {
     editingSurface = "rendered";
     liveLine = line;
-    requestAnimationFrame(() => focusRenderedLine(line, position));
+    focusRenderedLine(line, position);
   }
 
   function resetEditorHistory(): void {
@@ -1696,10 +1696,17 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
           : undefined;
     if (!candidate) return;
     if (editor && (candidate === editor || editor.contains(candidate))) return "source";
+    const candidateElement =
+      candidate instanceof HTMLElement
+        ? candidate
+        : candidate.parentElement instanceof HTMLElement
+          ? candidate.parentElement
+          : undefined;
     if (
       liveEditorContainer &&
-      liveEditorContainer.contains(candidate) &&
-      liveLineElement(candidate)
+      candidateElement &&
+      liveEditorContainer.contains(candidateElement) &&
+      (liveLineElement(candidateElement) || candidateElement.closest(".live-editing-overlay"))
     )
       return "rendered";
   }
@@ -1835,7 +1842,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     }
     const position = markdownPosition(selection.end);
     liveLine = position.line;
-    requestAnimationFrame(() => {
+    void tick().then(() => {
       if (!liveEditorContainer || renderedReadOnly) return;
       focusRenderedLine(position.line, position.position);
       if (selection.start !== selection.end) {
@@ -2010,48 +2017,97 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     writeKeyboardShortcuts(shortcuts);
   }
 
-  function updateRenderedLine(line: number, element: HTMLElement): void {
+  function updateRenderedInput(event: InputEvent): void {
+    const browserSelection = window.getSelection();
+    const element =
+      liveLineElement(event.target instanceof Node ? event.target : null) ??
+      liveLineElement(browserSelection?.anchorNode ?? null) ??
+      liveEditorContainer?.querySelector<HTMLElement>(`[data-live-line="${liveLine}"]`);
+    if (!element) return;
+    const line = liveLineIndex(element);
+    if (line === undefined) return;
+    liveLine = line;
+
+    const pending = pendingEditorState;
+    const captured =
+      pending?.markdown === markdown && pending.selection?.surface === "rendered"
+        ? pending.selection
+        : undefined;
     const position = getCaretOffset(element);
+    if (captured) {
+      const start = Math.min(captured.start, captured.end);
+      const end = Math.max(captured.start, captured.end);
+      const startPosition = markdownPosition(start);
+      const originalLine = markdownLines[startPosition.line] ?? "";
+      const prefix = originalLine.slice(0, startPosition.position);
+      if (
+        startPosition.line === line &&
+        position >= startPosition.position &&
+        element.textContent?.startsWith(prefix)
+      ) {
+        const replacement = (element.textContent ?? "").slice(startPosition.position, position);
+        const nextMarkdown = `${markdown.slice(0, start)}${replacement}${markdown.slice(end)}`;
+        const nextOffset = start + replacement.length;
+        updateMarkdown(nextMarkdown);
+        const nextPosition = markdownPosition(nextOffset);
+        liveLine = nextPosition.line;
+        void tick().then(() => focusRenderedLine(nextPosition.line, nextPosition.position));
+        return;
+      }
+    }
     const replacement = (element.textContent ?? "").split("\n");
     const lines = [...markdownLines];
     lines.splice(line, 1, ...replacement);
-    liveLine = line + replacement.length - 1;
+    const nextLine = line + replacement.length - 1;
+    liveLine = nextLine;
     updateMarkdown(lines.join("\n"));
     void tick().then(() =>
-      focusRenderedLine(liveLine, replacement.length > 1 ? replacement.at(-1)?.length : position),
+      focusRenderedLine(nextLine, replacement.length > 1 ? replacement.at(-1)?.length : position),
     );
   }
 
-  function handleRenderedLineKeydown(event: KeyboardEvent, line: number): void {
-    const element = event.currentTarget as HTMLElement;
-    const editorSelection = getEditorSelection(element);
-    if (
-      editorSelection &&
-      editorSelection.start !== editorSelection.end &&
-      (event.key === "Backspace" || event.key === "Delete")
-    ) {
-      event.preventDefault();
-      replaceEditorSelection(editorSelection, "");
-      return;
+  function handleRenderedLineKeydown(event: KeyboardEvent): void {
+    const browserSelection = window.getSelection();
+    const element =
+      liveLineElement(event.target instanceof Node ? event.target : null) ??
+      liveLineElement(browserSelection?.anchorNode ?? null) ??
+      liveEditorContainer?.querySelector<HTMLElement>(`[data-live-line="${liveLine}"]`);
+    if (!element) return;
+    const line = liveLineIndex(element);
+    if (line === undefined) return;
+    liveLine = line;
+
+    const editorSelection = getEditorSelection(event.currentTarget);
+    if (editorSelection && editorSelection.start !== editorSelection.end) {
+      if (event.key === "Backspace" || event.key === "Delete") {
+        event.preventDefault();
+        replaceEditorSelection(editorSelection, "");
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        replaceEditorSelection(editorSelection, "\n");
+        return;
+      }
     }
-    const selection = getSourceSelection(element);
-    if (!selection) return;
+    const sourceSelection = getSourceSelection(element);
+    if (!sourceSelection) return;
     const value = element.textContent ?? "";
     if (event.key === "Enter") {
       event.preventDefault();
-      const before = value.slice(0, selection.start);
-      const after = value.slice(selection.end);
+      const before = value.slice(0, sourceSelection.start);
+      const after = value.slice(sourceSelection.end);
       const marker = before.match(/^(\s*(?:[-*]\s+(?:\[[ xX]\]\s+)?|>\s+))/)?.[1] ?? "";
       const continuation = marker && before.trim() !== marker.trim() ? marker : "";
       const lines = [...markdownLines];
       lines.splice(line, 1, before, `${continuation}${after}`);
       updateMarkdown(lines.join("\n"));
       liveLine = line + 1;
-      requestAnimationFrame(() => focusRenderedLine(line + 1, continuation.length));
+      void tick().then(() => focusRenderedLine(line + 1, continuation.length));
     } else if (
       event.key === "Backspace" &&
-      selection.start === 0 &&
-      selection.end === 0 &&
+      sourceSelection.start === 0 &&
+      sourceSelection.end === 0 &&
       line > 0
     ) {
       event.preventDefault();
@@ -2060,13 +2116,64 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       lines.splice(line - 1, 2, `${lines[line - 1]}${value}`);
       updateMarkdown(lines.join("\n"));
       liveLine = line - 1;
-      requestAnimationFrame(() => focusRenderedLine(line - 1, previousLength));
-    } else if (event.key === "ArrowUp" && line > 0) {
+      void tick().then(() => focusRenderedLine(line - 1, previousLength));
+    } else if (
+      event.key === "Delete" &&
+      sourceSelection.start === value.length &&
+      sourceSelection.end === value.length &&
+      line < markdownLines.length - 1
+    ) {
       event.preventDefault();
-      activateLiveLine(line - 1, Math.min(selection.start, markdownLines[line - 1].length));
-    } else if (event.key === "ArrowDown" && line < markdownLines.length - 1) {
+      const lines = [...markdownLines];
+      lines.splice(line, 2, `${lines[line]}${lines[line + 1]}`);
+      updateMarkdown(lines.join("\n"));
+      void tick().then(() => focusRenderedLine(line, value.length));
+    } else if (
+      event.key === "ArrowLeft" &&
+      sourceSelection.start === 0 &&
+      sourceSelection.end === 0 &&
+      line > 0 &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey
+    ) {
       event.preventDefault();
-      activateLiveLine(line + 1, Math.min(selection.start, markdownLines[line + 1].length));
+      activateLiveLine(line - 1, markdownLines[line - 1]?.length ?? 0);
+    } else if (
+      event.key === "ArrowRight" &&
+      sourceSelection.start === value.length &&
+      sourceSelection.end === value.length &&
+      line < markdownLines.length - 1 &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      activateLiveLine(line + 1, 0);
+    } else if (
+      event.key === "ArrowUp" &&
+      sourceSelection.start === sourceSelection.end &&
+      line > 0 &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      activateLiveLine(line - 1, Math.min(sourceSelection.start, markdownLines[line - 1].length));
+    } else if (
+      event.key === "ArrowDown" &&
+      sourceSelection.start === sourceSelection.end &&
+      line < markdownLines.length - 1 &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      activateLiveLine(line + 1, Math.min(sourceSelection.start, markdownLines[line + 1].length));
     }
   }
 
@@ -2918,7 +3025,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     handleEditorCut,
     handleEditorPaste,
     updateMarkdown,
-    updateRenderedLine,
+    updateRenderedInput,
     handleRenderedLineKeydown,
     activateLiveLine,
     renderEditableLine,

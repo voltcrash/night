@@ -1325,7 +1325,8 @@
   text-decoration-color: transparent !important;
   -webkit-text-fill-color: transparent;
 }
-.live-editor.prose .live-editing-overlay .live-editable-line::selection {
+.live-editor.prose .live-editing-overlay .live-editable-line::selection,
+.live-editor.prose .live-editing-overlay .live-editable-line *::selection {
   color: transparent;
-  background: transparent;
+  background: var(--selection);
 }

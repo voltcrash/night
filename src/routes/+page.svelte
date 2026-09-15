@@ -108,7 +108,7 @@
 		onEditorPaste={page.handleEditorPaste}
 		onSourceFocus={page.focusSourceEditor}
 		onLiveLineFocus={page.focusLiveLine}
-		onRenderedLineInput={page.updateRenderedLine}
+		onRenderedInput={page.updateRenderedInput}
 		onRenderedLineKeydown={page.handleRenderedLineKeydown}
 		renderEditableLine={page.renderEditableLine}
 		liveLineKind={page.liveLineKind}
