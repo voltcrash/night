@@ -75,6 +75,18 @@
   --inverse-muted: #cfcbc0;
   --code-bg: #282724;
   --code-text: #f4f2ec;
+  --code-syntax-comment: #8b949e;
+  --code-syntax-keyword: #ff7b72;
+  --code-syntax-string: #a5d6ff;
+  --code-syntax-number: #79c0ff;
+  --code-syntax-title: #d2a8ff;
+  --code-syntax-variable: #ffa657;
+  --code-syntax-attribute: #79c0ff;
+  --code-syntax-meta: #d2a8ff;
+  --code-syntax-tag: #7ee787;
+  --code-syntax-regexp: #a5d6ff;
+  --code-syntax-addition: #aff5b4;
+  --code-syntax-deletion: #ffa198;
 
   --solid-bg: #262623;
   --on-solid: #ffffff;
@@ -233,6 +245,18 @@
   --inverse-muted: #a1a1a1;
   --code-bg: #0a0a0a;
   --code-text: #ededed;
+  --code-syntax-comment: #8c8c8c;
+  --code-syntax-keyword: #f0f0f0;
+  --code-syntax-string: #c9c9c9;
+  --code-syntax-number: #b0b0b0;
+  --code-syntax-title: #e6e6e6;
+  --code-syntax-variable: #d2d2d2;
+  --code-syntax-attribute: #c0c0c0;
+  --code-syntax-meta: #a8a8a8;
+  --code-syntax-tag: #e0e0e0;
+  --code-syntax-regexp: #c0c0c0;
+  --code-syntax-addition: #c6c6c6;
+  --code-syntax-deletion: #b8b8b8;
 
   --solid-bg: #000000;
   --on-solid: #ffffff;

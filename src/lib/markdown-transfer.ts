@@ -1,5 +1,6 @@
 import { BlobReader, BlobWriter, ZipReader, ZipWriter, type Entry } from "@zip.js/zip.js";
 
+import { titleFromMarkdown } from "./markdown.js";
 import type { Vault } from "./storage/vault.js";
 
 const BYTES_PER_MEBIBYTE = 1024 * 1024;
@@ -152,7 +153,10 @@ export async function importMarkdownFiles(
       })),
       markdown: note.text,
       sourcePath: note.file.path,
-      title: titleFromMarkdown(note.text, note.file.path),
+      title: titleFromMarkdown(
+        note.text,
+        basename(note.file.path).replace(/\.(?:md|markdown)$/i, "") || "Untitled",
+      ),
     })),
   );
 }
@@ -696,19 +700,6 @@ function commonDirectoryDepth(left: string, right: string): number {
   let depth = 0;
   while (leftParts[depth] && leftParts[depth] === rightParts[depth]) depth += 1;
   return depth;
-}
-
-function titleFromMarkdown(markdown: string, path: string): string {
-  const firstLine =
-    markdown
-      .split("\n")
-      .find((line) => line.trim())
-      ?.trim() ?? "";
-  const title = firstLine
-    .replace(/^#{1,6}\s*/, "")
-    .replace(/[*_`~[\]]/g, "")
-    .trim();
-  return title.slice(0, 80) || basename(path).replace(/\.(?:md|markdown)$/i, "") || "Untitled";
 }
 
 function dirname(path: string): string {

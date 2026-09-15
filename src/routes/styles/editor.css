@@ -513,25 +513,6 @@
   width: min(100%, var(--content-width));
   margin: 0 auto;
 }
-.live-source-line {
-  display: block;
-  width: 100%;
-  field-sizing: content;
-  min-height: 1.76em;
-  resize: none;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: var(--accent-bg);
-  color: var(--ink-body);
-  font-family: var(--font-code);
-  font-size: 15px;
-  line-height: 1.99;
-  box-shadow:
-    -8px 0 0 var(--accent-bg),
-    8px 0 0 var(--accent-bg);
-}
 .live-editable-line {
   min-height: 1.76em;
   border-radius: 4px;
@@ -554,9 +535,13 @@
   color: transparent;
   white-space: pre;
 }
+.prose em,
+.live-editable-line em {
+  font-synthesis: style;
+}
 /* Headings carry their own face in both editing surfaces and the preview. */
 .live-editable-line:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6),
-.live-rendered-line :is(h1, h2, h3, h4, h5, h6) {
+.live-editable-line :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-heading);
 }
 .live-editable-line.heading-1 {
@@ -662,87 +647,6 @@
 .live-editable-line a {
   color: var(--accent-link);
   text-decoration: underline;
-  text-decoration-color: var(--accent-underline);
-  text-underline-offset: 3px;
-}
-.live-rendered-line {
-  min-height: 1.76em;
-  border-radius: 4px;
-  cursor: text;
-}
-.live-rendered-line:hover {
-  background: var(--subtle);
-  box-shadow:
-    -8px 0 0 var(--subtle),
-    8px 0 0 var(--subtle);
-}
-.live-rendered-line:focus-visible {
-  outline-offset: 4px;
-}
-.live-rendered-line.blank {
-  height: 1.76em;
-}
-.live-rendered-line :is(h1, h2, h3, p, blockquote, ul, pre) {
-  margin: 0;
-}
-.live-rendered-line h1 {
-  color: var(--ink-strong);
-  font-size: 2.05em;
-  line-height: 1.3;
-  letter-spacing: -0.04em;
-}
-.live-rendered-line h2 {
-  margin-top: 0.35em;
-  color: var(--ink-strong);
-  font-size: 1.5em;
-  line-height: 1.4;
-  letter-spacing: -0.03em;
-}
-.live-rendered-line h3 {
-  margin-top: 0.3em;
-  color: var(--ink-strong);
-  font-size: 1.18em;
-  line-height: 1.5;
-}
-.live-rendered-line h4,
-.live-rendered-line h5,
-.live-rendered-line h6 {
-  margin-top: 0.25em;
-  color: var(--ink-strong);
-  font-size: 1em;
-  line-height: 1.55;
-}
-.live-rendered-line blockquote {
-  padding-left: 1em;
-  border-left: 3px solid var(--accent-border);
-  color: var(--ink-soft);
-  font-style: italic;
-}
-.live-rendered-line ul,
-.live-rendered-line ol {
-  padding-left: 1.4em;
-}
-.live-rendered-line hr {
-  margin: 0.85em 0;
-  border: 0;
-  border-top: 1px solid var(--line);
-}
-.live-rendered-line pre {
-  overflow-x: auto;
-  padding: 0.35em 0.65em;
-  border-radius: 6px;
-  background: var(--code-bg);
-  color: var(--code-text);
-  font: 0.84em / 1.65 var(--font-code);
-}
-.live-rendered-line code:not(pre code) {
-  padding: 0.12em 0.35em;
-  border-radius: 4px;
-  background: var(--subtle-strong);
-  font: 0.86em var(--font-code);
-}
-.live-rendered-line a {
-  color: var(--accent-link);
   text-decoration-color: var(--accent-underline);
   text-underline-offset: 3px;
 }
@@ -867,6 +771,12 @@
   margin: 12px 0 22px;
   padding-left: 24px;
 }
+.prose ul {
+  list-style-type: disc;
+}
+.prose ol {
+  list-style-type: decimal;
+}
 .prose li > :is(ul, ol) {
   margin: 5px 0 8px;
 }
@@ -901,10 +811,96 @@
   background: var(--code-bg);
   color: var(--code-text);
 }
+.prose pre[data-code-language],
+.live-editor.prose .live-editable-line.code-content[data-code-language] {
+  position: relative;
+}
+.prose pre[data-code-language]::before,
+.live-editor.prose .live-editable-line.code-content.code-end[data-code-language]::before {
+  content: attr(data-code-language);
+  position: absolute;
+  bottom: 8px;
+  right: 18px;
+  color: var(--code-syntax-comment);
+  font: 600 8px / 1.2 var(--font-code);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .prose pre code {
   padding: 0;
   background: transparent;
   color: inherit;
+}
+.prose pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  font-size: inherit;
+}
+.prose :is(pre code, .code-content) .hljs-comment,
+.prose :is(pre code, .code-content) .hljs-quote,
+.prose :is(pre code, .code-content) .hljs-doctag {
+  color: var(--code-syntax-comment);
+  font-style: italic;
+}
+.prose :is(pre code, .code-content) .hljs-keyword,
+.prose :is(pre code, .code-content) .hljs-selector-tag,
+.prose :is(pre code, .code-content) .hljs-literal,
+.prose :is(pre code, .code-content) .hljs-section,
+.prose :is(pre code, .code-content) .hljs-name {
+  color: var(--code-syntax-keyword);
+}
+.prose :is(pre code, .code-content) .hljs-string,
+.prose :is(pre code, .code-content) .hljs-regexp {
+  color: var(--code-syntax-string);
+}
+.prose :is(pre code, .code-content) .hljs-attribute,
+.prose :is(pre code, .code-content) .hljs-attr {
+  color: var(--code-syntax-attribute);
+}
+.prose :is(pre code, .code-content) .hljs-number,
+.prose :is(pre code, .code-content) .hljs-symbol,
+.prose :is(pre code, .code-content) .hljs-bullet {
+  color: var(--code-syntax-number);
+}
+.prose :is(pre code, .code-content) .hljs-title,
+.prose :is(pre code, .code-content) .hljs-title.class_,
+.prose :is(pre code, .code-content) .hljs-title.function_ {
+  color: var(--code-syntax-title);
+}
+.prose :is(pre code, .code-content) .hljs-variable,
+.prose :is(pre code, .code-content) .hljs-template-variable,
+.prose :is(pre code, .code-content) .hljs-type,
+.prose :is(pre code, .code-content) .hljs-built_in,
+.prose :is(pre code, .code-content) .hljs-selector-class,
+.prose :is(pre code, .code-content) .hljs-selector-id,
+.prose :is(pre code, .code-content) .hljs-selector-attr,
+.prose :is(pre code, .code-content) .hljs-selector-pseudo {
+  color: var(--code-syntax-variable);
+}
+.prose :is(pre code, .code-content) .hljs-meta,
+.prose :is(pre code, .code-content) .hljs-meta .hljs-string,
+.prose :is(pre code, .code-content) .hljs-params {
+  color: var(--code-syntax-meta);
+}
+.prose :is(pre code, .code-content) .hljs-tag {
+  color: var(--code-syntax-tag);
+}
+.prose :is(pre code, .code-content) .hljs-addition {
+  color: var(--code-syntax-addition);
+}
+.prose :is(pre code, .code-content) .hljs-deletion {
+  color: var(--code-syntax-deletion);
+}
+.prose :is(pre code, .code-content) .hljs-link {
+  color: var(--code-syntax-string);
+  text-decoration: underline;
+}
+.prose :is(pre code, .code-content) .hljs-emphasis {
+  font-style: italic;
+}
+.prose :is(pre code, .code-content) .hljs-strong {
+  font-weight: 700;
 }
 .prose kbd {
   display: inline-block;
@@ -1060,4 +1056,286 @@
 }
 .prose .data-footnote-backref {
   text-decoration: none;
+}
+/* Keep the editable preview on the same typographic grid as the read-only article. */
+.live-editor.prose {
+  padding: 49px clamp(30px, 6vw, 78px) 90px;
+}
+.live-editor.prose .live-editable-line {
+  min-height: 0;
+  border-radius: 0;
+  outline: 0;
+  white-space: normal;
+}
+.live-editor.prose .live-editable-line .md-syntax {
+  font-size: 0;
+  line-height: 0;
+}
+.live-editor.prose .live-editable-line:hover,
+.live-editor.prose .live-editable-line.active {
+  background: transparent;
+  box-shadow: none;
+}
+.live-editor.prose
+  .live-editable-line:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6) {
+  color: var(--ink-strong);
+  font-family: var(--font-heading);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.live-editor.prose .live-editable-line.heading-1 {
+  margin: 0 0 25px;
+  font-size: clamp(32px, 4vw, 42px);
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line.heading-2 {
+  margin: 25px 0 14px;
+  font-size: 25px;
+  font-weight: 520;
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line.heading-3 {
+  margin: 32px 0 10px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line:is(.heading-4, .heading-5, .heading-6) {
+  margin: 26px 0 9px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line.list-line {
+  position: relative;
+  margin: 7px 0;
+  padding: 0 0 0 24px;
+}
+.live-editor.prose .live-editable-line.list-line.list-start {
+  margin-top: 0;
+}
+.live-editor.prose .live-editable-line.list-line.list-start.ordered-list {
+  margin-top: 15px;
+}
+.live-editor.prose .live-editable-line.list-line:has(.live-task-check) {
+  padding-left: 5px;
+}
+.live-editor.prose .live-list-marker {
+  display: inline-grid;
+  width: 24px;
+  margin-left: -24px;
+  margin-right: 3px;
+  place-items: center end;
+}
+.live-editor.prose .live-task-check {
+  width: 16px;
+  height: 16px;
+  margin: 0 9px 0 0;
+  border: 1px solid var(--line-hover);
+  border-radius: 4px;
+  vertical-align: -2px;
+  color: var(--on-solid);
+  font: 0.7em/1 sans-serif;
+}
+.live-editor.prose .live-task-check.done {
+  border-color: var(--line-hover);
+  background: var(--line-hover);
+  color: var(--on-solid);
+  vertical-align: 2.5px;
+}
+.live-editor.prose .live-task-check.done::before {
+  content: "✓";
+}
+.live-editor.prose .live-editable-line.quote-line {
+  margin: 20px 0 0;
+  padding: 2px 0 2px 19px;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  font-size: 19px;
+  font-style: italic;
+  line-height: 1.76;
+}
+.live-editor.prose .live-editable-line.rule-line {
+  position: relative;
+  height: 1px;
+  margin: 36px 0;
+  padding: 0;
+}
+.live-editor.prose .live-editable-line.rule-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid var(--line);
+}
+.live-editor.prose .live-editable-line.code-fence {
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 0;
+}
+.live-editor.prose .live-editable-line.code-content {
+  margin: 0;
+  padding: 0 18px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font: 17px / 1.76 var(--font-code);
+  white-space: pre;
+  overflow-x: auto;
+}
+.live-editor.prose .live-editable-line.code-content.code-start {
+  padding-top: 18px;
+  border-radius: 8px 8px 0 0;
+}
+.live-editor.prose .live-editable-line.code-content.code-end {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-radius: 0 0 8px 8px;
+}
+.live-editor.prose .live-editable-line.code-content.code-start.code-end {
+  border-radius: 8px;
+}
+.live-editor.prose .live-editable-line code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--subtle-strong);
+  color: var(--accent-quiet);
+  font-family: var(--font-code);
+  font-size: 0.84em;
+}
+.live-editor.prose .live-editable-line mark {
+  padding: 0.08em 0.18em;
+  border-radius: 3px;
+  background: var(--selection);
+  color: inherit;
+}
+.live-editor.prose .live-editable-line.table-line {
+  margin: 0;
+  font-size: 0.88em;
+  line-height: 1.76;
+  white-space: normal;
+}
+.live-editor.prose .live-editable-line.table-separator {
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 0;
+}
+.live-editor.prose .live-editable-line.table-line > .md-syntax {
+  display: none;
+}
+.live-editor.prose .live-table-row {
+  display: grid;
+  grid-template-columns: repeat(var(--table-columns), minmax(0, 1fr));
+  width: 100%;
+}
+.live-editor.prose .live-table-row > .md-syntax {
+  display: none;
+}
+.live-editor.prose .live-table-cell {
+  display: block;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--line-hover);
+  overflow-wrap: normal;
+}
+.live-editor.prose .live-table-cell > .md-syntax {
+  display: none;
+}
+.live-editor.prose .live-table-row.header .live-table-cell {
+  color: var(--ink-strong);
+  background: var(--subtle);
+  font-weight: 650;
+}
+.live-editor.prose .live-editable-line.table-body:not(:has(+ .live-editable-line.table-line)) {
+  margin-bottom: 24px;
+}
+.live-editor.prose
+  .live-editable-line:not(
+    .heading-1,
+    .heading-2,
+    .heading-3,
+    .heading-4,
+    .heading-5,
+    .heading-6,
+    .list-line,
+    .quote-line,
+    .rule-line,
+    .code-line,
+    .table-line,
+    .blank-line
+  ) {
+  margin: 0 0 17px;
+}
+.live-editor.prose .live-editable-line.blank-line {
+  min-height: 0;
+  height: 0;
+  font-size: 0;
+  line-height: 0;
+  margin: 0 !important;
+}
+@media (max-width: 700px) {
+  .live-editor.prose {
+    padding: 36px 25px 80px;
+  }
+}
+
+/* The visible page is shared with read-only mode; these transparent controls only provide editing. */
+.live-editor.prose {
+  position: relative;
+}
+.live-rendered-content {
+  position: relative;
+  z-index: 1;
+}
+.live-editing-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  margin: 0 !important;
+  overflow: hidden;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: transparent !important;
+  pointer-events: auto;
+  caret-color: var(--ink);
+  -webkit-text-fill-color: transparent;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line::before {
+  content: none !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line.code-content {
+  font-family: var(--font-code) !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line * {
+  color: transparent !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  text-decoration-color: transparent !important;
+  -webkit-text-fill-color: transparent;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line.selection-active .live-list-marker,
+.live-editor.prose .live-editing-overlay .live-editable-line.selection-active .live-task-check {
+  background: color-mix(in srgb, var(--selection) 50%, var(--surface)) !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line.selection-active .live-task-check {
+  border-color: color-mix(in srgb, var(--selection) 50%, var(--surface)) !important;
+}
+.live-editor.prose .live-editing-overlay .live-editable-line::selection,
+.live-editor.prose .live-editing-overlay .live-editable-line *::selection {
+  color: transparent;
+  background: color-mix(in srgb, var(--selection) 50%, transparent);
 }

@@ -70,6 +70,114 @@ async function mockGithubSession(page: Page): Promise<void> {
   });
 }
 
+async function setRenderedSelection(
+  page: Page,
+  startLine: number,
+  startOffset: number,
+  endLine = startLine,
+  endOffset = startOffset,
+): Promise<void> {
+  await page.evaluate(
+    ({ startLine, startOffset, endLine, endOffset }) => {
+      const lineAt = (line: number): HTMLElement => {
+        const element = document.querySelector<HTMLElement>(`[data-live-line="${line}"]`);
+        if (!element) throw new Error(`Rendered line ${line} is not available`);
+        return element;
+      };
+      const pointAt = (element: HTMLElement, offset: number): { node: Node; offset: number } => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let remaining = Math.max(0, offset);
+        let node = walker.nextNode();
+        while (node) {
+          const length = node.textContent?.length ?? 0;
+          if (remaining <= length) return { node, offset: remaining };
+          remaining -= length;
+          node = walker.nextNode();
+        }
+        return { node: element, offset: element.childNodes.length };
+      };
+
+      const start = pointAt(lineAt(startLine), startOffset);
+      const end = pointAt(lineAt(endLine), endOffset);
+      const range = document.createRange();
+      range.setStart(start.node, start.offset);
+      range.setEnd(end.node, end.offset);
+      const selection = window.getSelection();
+      if (!selection) throw new Error("The browser did not expose a selection");
+      lineAt(startLine).focus();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    },
+    { startLine, startOffset, endLine, endOffset },
+  );
+}
+
+async function pointInsideRenderedText(
+  page: Page,
+  selector: string,
+  offset: number,
+): Promise<{ x: number; y: number; left: number; right: number; top: number }> {
+  return page.locator(selector).evaluate((element, requestedOffset) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node && !node.data.length) node = walker.nextNode() as Text | null;
+    if (!node) throw new Error("Rendered text is not available");
+    const offset = Math.min(Math.max(0, requestedOffset), Math.max(0, node.length - 1));
+    const range = document.createRange();
+    range.setStart(node, offset);
+    range.setEnd(node, Math.min(node.length, offset + 1));
+    const rect = range.getBoundingClientRect();
+    return {
+      x: rect.left + Math.max(1, rect.width) / 2,
+      y: rect.top + rect.height / 2,
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+    };
+  }, offset);
+}
+
+async function renderedSelectionDetails(page: Page) {
+  return page.evaluate(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const lines = [...document.querySelectorAll<HTMLElement>("[data-live-line]")];
+    const lineOf = (node: Node | null): HTMLElement | undefined => {
+      const element = node instanceof HTMLElement ? node : node?.parentElement;
+      return element?.closest<HTMLElement>("[data-live-line]") ?? undefined;
+    };
+    const offsetOf = (line: HTMLElement, node: Node, offset: number): number => {
+      const range = document.createRange();
+      range.selectNodeContents(line);
+      range.setEnd(node, offset);
+      return range.cloneContents().textContent?.length ?? 0;
+    };
+    const globalOffset = (line: HTMLElement | undefined, node: Node, offset: number) => {
+      if (!line) return undefined;
+      const index = Number(line.dataset.liveLine);
+      const local = offsetOf(line, node, offset);
+      return (
+        lines
+          .slice(0, index)
+          .reduce((total, candidate) => total + candidate.textContent!.length + 1, 0) + local
+      );
+    };
+    const anchorLine = lineOf(selection.anchorNode);
+    const focusLine = lineOf(selection.focusNode);
+    const anchor = globalOffset(anchorLine, selection.anchorNode!, selection.anchorOffset);
+    const focus = globalOffset(focusLine, selection.focusNode!, selection.focusOffset);
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    return {
+      anchorLine: anchorLine?.dataset.liveLine ?? null,
+      focusLine: focusLine?.dataset.liveLine ?? null,
+      start: anchor === undefined || focus === undefined ? null : Math.min(anchor, focus),
+      end: anchor === undefined || focus === undefined ? null : Math.max(anchor, focus),
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      text: selection.toString(),
+    };
+  });
+}
+
 test("traps modal focus and returns it to the opener", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
@@ -124,6 +232,32 @@ test("offers additional color themes and persists the selection", async ({ page 
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-color-theme", "solarized");
+});
+
+test("opens general settings on Editor and the storage shortcut on Storage choices", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Editor", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("heading", { name: "Editor", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Restore default fonts" })).toHaveCount(0);
+
+  await page.locator("#font-heading").selectOption("inter");
+  await expect(page.getByRole("button", { name: "Restore default fonts" })).toBeVisible();
+  await page.getByRole("button", { name: "Restore default fonts" }).click();
+  await expect(page.getByRole("button", { name: "Restore default fonts" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Close settings" }).click();
+  await page.getByRole("button", { name: "Open local storage settings" }).click();
+  await expect(page.getByRole("button", { name: "Storage choices", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 });
 
 test("persists edits made while an earlier save is still in flight", async ({ page }) => {
@@ -331,14 +465,38 @@ test("searches note titles and Markdown content", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Project Aurora/ })).toBeVisible();
 });
 
+test("uses the first Markdown heading for notes with front matter", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+
+  await markdown.fill("---\ntitle: Metadata title\n---\n\n# Rendered title");
+
+  await expect(page.getByRole("button", { name: "Rendered title", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.getByRole("button", { name: "Turn on read-only" }).click();
+  await expect(page.locator(".preview-pane h1")).toHaveText("Rendered title");
+});
+
 test("formats Markdown while editing in the page pane", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
 
   const line = page.getByRole("textbox", { name: "Markdown line 3" });
-  await line.fill("Onyx renders **Markdown** while you keep writing.");
-  await expect(line).toContainText("Onyx renders **Markdown** while you keep writing.");
+  await line.fill("Onyx renders **Markdown** and _italic_ while you keep writing.");
+  await expect(line).toContainText(
+    "Onyx renders **Markdown** and _italic_ while you keep writing.",
+  );
   await expect(line.locator("strong")).toHaveText("Markdown");
+  await expect(line.locator("em")).toHaveText("italic");
+  await expect(line.locator("em")).toHaveCSS("font-synthesis", "style");
+
+  await line.fill("A ~~struck~~ ==marked== [link](https://example.com).");
+  await expect(line.locator("del")).toHaveText("struck");
+  await expect(line.locator("mark")).toHaveText("marked");
+  await expect(line.locator("a")).toHaveCount(1);
+  await expect(line.locator("a")).toHaveText("link");
+  await expect(line).toContainText("[link](https://example.com)");
 
   await line.fill("#");
   await expect(line).not.toHaveClass(/heading-1/);
@@ -349,18 +507,479 @@ test("formats Markdown while editing in the page pane", async ({ page }) => {
   await expect(line).toContainText("# Inline heading");
 });
 
-test("can reveal the active Markdown line while editing the page", async ({ page }) => {
+test("keeps rendered selections continuous across lines", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "alpha **bold**\nsecond line\nthird ending";
+  const start = 6;
+  const end = source.indexOf("ending");
+  await markdown.fill(source);
+
+  await setRenderedSelection(page, 0, start, 2, 6);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const selection = window.getSelection();
+        const lineOf = (node: Node | null) => {
+          const element = node instanceof HTMLElement ? node : node?.parentElement;
+          return element?.closest<HTMLElement>("[data-live-line]")?.dataset.liveLine ?? null;
+        };
+        return {
+          anchor: lineOf(selection?.anchorNode ?? null),
+          focus: lineOf(selection?.focusNode ?? null),
+        };
+      }),
+    )
+    .toEqual({ anchor: "0", focus: "2" });
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: async (text: string) => void (state.onyxCopied = text) },
+    });
+  });
+  await page.keyboard.press("ControlOrMeta+C");
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toBe(source.slice(start, end));
+
+  await markdown.fill(source);
+  await setRenderedSelection(page, 0, start, 2, 6);
+  await page.keyboard.type("REPLACED");
+  await expect(markdown).toHaveValue("alpha REPLACEDending");
+
+  await markdown.fill(source);
+  await setRenderedSelection(page, 0, start, 2, 6);
+  await page.keyboard.press("Backspace");
+  await expect(markdown).toHaveValue("alpha ending");
+});
+
+test("allows mouse selection to cross rendered lines", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "first line here\nsecond line here\nthird line ending";
+  await markdown.fill(source);
+
+  const points = await page.evaluate(() => {
+    const pointAt = (line: number, offset: number) => {
+      const element = document.querySelector<HTMLElement>(`[data-live-line="${line}"]`);
+      if (!element) throw new Error(`Rendered line ${line} is not available`);
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      let remaining = offset;
+      let node = walker.nextNode();
+      while (node) {
+        const length = node.textContent?.length ?? 0;
+        if (remaining <= length) break;
+        remaining -= length;
+        node = walker.nextNode();
+      }
+      const range = document.createRange();
+      if (node) range.setStart(node, remaining);
+      else {
+        range.selectNodeContents(element);
+        range.collapse(false);
+      }
+      range.collapse(true);
+      const caret = range.getBoundingClientRect();
+      const lineRect = element.getBoundingClientRect();
+      return { x: caret.left || lineRect.left + 2, y: lineRect.top + lineRect.height / 2 };
+    };
+    return { start: pointAt(0, 2), end: pointAt(2, 11) };
+  });
+
+  await page.mouse.move(points.start.x, points.start.y);
+  await page.mouse.down();
+  await page.mouse.move(points.end.x, points.end.y, { steps: 12 });
+  await page.mouse.up();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const selection = window.getSelection();
+        const lineOf = (node: Node | null) => {
+          const element = node instanceof HTMLElement ? node : node?.parentElement;
+          return element?.closest<HTMLElement>("[data-live-line]")?.dataset.liveLine ?? null;
+        };
+        return {
+          anchor: lineOf(selection?.anchorNode ?? null),
+          focus: lineOf(selection?.focusNode ?? null),
+        };
+      }),
+    )
+    .toEqual({ anchor: "0", focus: "2" });
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: async (text: string) => void (state.onyxCopied = text) },
+    });
+  });
+  await page.keyboard.press("ControlOrMeta+C");
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toBe(source.slice(2, source.indexOf("ending")));
+});
+
+test("places the rendered caret on the visible text that was clicked", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = [
+    "# Welcome to Onyx",
+    "",
+    "A paragraph with enough text to test the caret.",
+    "",
+    "> Good tools disappear into the work.",
+  ].join("\n");
+  await markdown.fill(source);
+  const sourceLines = source.split("\n");
+  const lineOffsets = sourceLines.map((_, index) =>
+    sourceLines.slice(0, index).reduce((total, line) => total + line.length + 1, 0),
+  );
+
+  const cases = [
+    { selector: ".live-rendered-content h1", line: 0, prefixLength: 2, offset: 4 },
+    {
+      selector: ".live-rendered-content > p",
+      line: 2,
+      prefixLength: 0,
+      offset: 4,
+    },
+    {
+      selector: ".live-rendered-content > blockquote > p",
+      line: 4,
+      prefixLength: 2,
+      offset: 4,
+    },
+  ];
+
+  for (const candidate of cases) {
+    const point = await pointInsideRenderedText(page, candidate.selector, candidate.offset);
+    await page.mouse.click(point.x, point.y);
+    await expect
+      .poll(() => renderedSelectionDetails(page))
+      .toMatchObject({ anchorLine: String(candidate.line), focusLine: String(candidate.line) });
+    const selection = await renderedSelectionDetails(page);
+    expect(selection).not.toBeNull();
+    if (!selection) throw new Error("The browser did not expose the rendered caret");
+    const expectedOffset = lineOffsets[candidate.line]! + candidate.prefixLength + candidate.offset;
+    expect(selection.start).toBeGreaterThanOrEqual(expectedOffset);
+    expect(selection.start).toBeLessThanOrEqual(expectedOffset + 1);
+    expect(selection.rect.x).toBeGreaterThanOrEqual(point.left - 2);
+    expect(selection.rect.x).toBeLessThanOrEqual(point.right + 2);
+    expect(Math.abs(selection.rect.y - point.top)).toBeLessThan(3);
+  }
+});
+
+test("places the rendered caret on table cell text", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "# Table\n\n| Name | State |\n| --- | --- |\n| Onyx | Ready |";
+  await markdown.fill(source);
+
+  for (const selector of [
+    ".live-rendered-content table td:nth-of-type(1)",
+    ".live-rendered-content table td:nth-of-type(2)",
+  ]) {
+    const point = await pointInsideRenderedText(page, selector, 2);
+    await page.mouse.click(point.x, point.y);
+    await expect
+      .poll(() => renderedSelectionDetails(page))
+      .toMatchObject({ anchorLine: "4", focusLine: "4" });
+    const selection = await renderedSelectionDetails(page);
+    expect(selection).not.toBeNull();
+    if (!selection) throw new Error("The browser did not expose the rendered caret");
+    expect(selection.rect.x).toBeGreaterThanOrEqual(point.left - 2);
+    expect(selection.rect.x).toBeLessThanOrEqual(point.right + 2);
+    expect(Math.abs(selection.rect.y - point.top)).toBeLessThan(3);
+  }
+});
+
+test("keeps drag selection continuous across formatted rendered blocks", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill(
+    "# Welcome to Onyx\n\nA paragraph with enough text to select.\n\n> Good tools disappear into the work.",
+  );
+
+  const start = await pointInsideRenderedText(page, ".live-rendered-content h1", 4);
+  const end = await pointInsideRenderedText(page, ".live-rendered-content > blockquote > p", 8);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect
+    .poll(() => renderedSelectionDetails(page))
+    .toMatchObject({ anchorLine: "0", focusLine: "4" });
+});
+
+test("keeps list markers inside rendered selections", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "### Tasks\n\n- A regular item\n- [x] A checked item\n- [ ] An open item";
+  await markdown.fill(source);
+
+  await setRenderedSelection(page, 2, 0, 4, source.split("\n")[4]!.length);
+
+  const selectedLines = page.locator(".live-editing-overlay [data-live-line].selection-active");
+  await expect(selectedLines).toHaveCount(3);
+  const listGeometry = await page.evaluate(() => {
+    const editable = [
+      ...document.querySelectorAll<HTMLElement>(".live-editing-overlay [data-live-line]"),
+    ].slice(2, 5);
+    const listRect = document
+      .querySelector<HTMLElement>(".live-rendered-content ul")!
+      .getBoundingClientRect();
+    const rendered = [...document.querySelectorAll<HTMLElement>(".live-rendered-content li")];
+    return editable.map((line, index) => {
+      const lineRect = line.getBoundingClientRect();
+      const itemRect = rendered[index]!.getBoundingClientRect();
+      return { dx: lineRect.left - listRect.left, dy: lineRect.top - itemRect.top };
+    });
+  });
+  for (const geometry of listGeometry) {
+    expect(Math.abs(geometry.dx)).toBeLessThan(1);
+    expect(Math.abs(geometry.dy)).toBeLessThan(1);
+  }
+  await expect
+    .poll(() =>
+      page
+        .locator('.live-editing-overlay [data-live-line="2"] .live-list-marker')
+        .evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .not.toBe("rgba(0, 0, 0, 0)");
+  for (const line of [3, 4]) {
+    await expect
+      .poll(() =>
+        page
+          .locator(`.live-editing-overlay [data-live-line="${line}"] .live-task-check`)
+          .evaluate((element) => getComputedStyle(element).backgroundColor),
+      )
+      .not.toBe("rgba(0, 0, 0, 0)");
+  }
+});
+
+test("triple-click selects a complete rendered Markdown line", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "# Welcome to Onyx\n\nA second line";
+  await markdown.fill(source);
+
+  const point = await pointInsideRenderedText(page, ".live-rendered-content h1", 5);
+  await page.mouse.click(point.x, point.y, { clickCount: 3 });
+
+  await expect
+    .poll(() => renderedSelectionDetails(page))
+    .toMatchObject({
+      anchorLine: "0",
+      focusLine: "1",
+      start: 0,
+      end: "# Welcome to Onyx\n".length,
+      text: "Welcome to Onyx",
+    });
+
+  await page.keyboard.type("Replaced");
+  await expect(markdown).toHaveValue("Replaced\nA second line");
+});
+
+test("keeps the rendered caret usable through typing and line boundaries", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+
+  await markdown.fill("This is **bold** text.");
+  await setRenderedSelection(page, 0, "This is **bold** text.".length);
+  await page.keyboard.type(" added");
+  await expect(markdown).toHaveValue("This is **bold** text. added");
+  for (let index = 0; index < " added".length; index += 1) await page.keyboard.press("Backspace");
+  await expect(markdown).toHaveValue("This is **bold** text.");
+
+  await markdown.fill("first\nsecond\nthird");
+  await setRenderedSelection(page, 0, 5);
+  await page.keyboard.press("Delete");
+  await expect(markdown).toHaveValue("firstsecond\nthird");
+
+  await markdown.fill("first\nsecond");
+  await setRenderedSelection(page, 1, 0);
+  await page.keyboard.press("Backspace");
+  await expect(markdown).toHaveValue("firstsecond");
+
+  await markdown.fill("one\ntwo");
+  await setRenderedSelection(page, 1, 0);
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.type("X");
+  await expect(markdown).toHaveValue("oneX\ntwo");
+
+  await markdown.fill("one\ntwo");
+  await setRenderedSelection(page, 0, 3);
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.type("X");
+  await expect(markdown).toHaveValue("one\nXtwo");
+
+  await markdown.fill("ab");
+  await setRenderedSelection(page, 0, 1);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("X");
+  await expect(markdown).toHaveValue("a\nXb");
+});
+
+test("supports standard editing shortcuts in the page pane", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
 
-  await page.getByRole("tab", { name: "Tools" }).click();
-  const inlinePreview = page.getByRole("button", { name: "Inline preview" });
-  await expect(inlinePreview).toHaveAttribute("aria-pressed", "false");
-  await inlinePreview.click();
-  await expect(inlinePreview).toHaveAttribute("aria-pressed", "true");
+  const line = page.getByRole("textbox", { name: "Markdown line 1", exact: true });
+  await line.fill("# Shortcut target");
+  await line.press("End");
+  await line.pressSequentially("!");
+  await line.press("ControlOrMeta+Z");
+  await expect(line).toContainText("# Shortcut target");
+  await line.press("ControlOrMeta+Y");
+  await expect(line).toContainText("# Shortcut target!");
 
-  await page.getByRole("button", { name: "Edit line 3" }).click();
-  await expect(page.getByRole("textbox", { name: "Markdown line 3" })).toBeVisible();
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string; onyxPaste?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => void (state.onyxCopied = text),
+        readText: async () => state.onyxPaste ?? "",
+      },
+    });
+  });
+
+  await line.evaluate((element) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node && !node.data.includes("target")) node = walker.nextNode() as Text | null;
+    const textNode = node;
+    if (!textNode) throw new Error("The target text is not editable");
+    const start = textNode.data.indexOf("target");
+    const range = document.createRange();
+    range.setStart(textNode, start);
+    range.setEnd(textNode, start + "target".length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    (element as HTMLElement).focus();
+  });
+  await line.press("ControlOrMeta+C");
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toBe("target");
+  await line.press("ControlOrMeta+X");
+  await expect(line).toContainText("# Shortcut !");
+
+  await page.evaluate(() => {
+    (window as typeof window & { onyxPaste?: string }).onyxPaste = "target";
+  });
+  await line.press("ControlOrMeta+V");
+  await expect(line).toContainText("# Shortcut target!");
+  await line.press("ControlOrMeta+Z");
+  await expect(line).toContainText("# Shortcut !");
+  await line.press("ControlOrMeta+Shift+Z");
+  await expect(line).toContainText("# Shortcut target!");
+});
+
+test("keeps the editable page preview aligned with read-only rendering", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(editor).toBeEnabled();
+
+  await editor.fill(
+    "# Formatting tour\n\nThis has **bold**, _italic_, ~~strike~~, ==highlight==, `code`, and [a link](https://example.com).\n\n## Lists\n\n- First item\n- **Bold item**\n- [x] Finished\n- [ ] Pending\n\n1. Ordered first\n2. Ordered second\n\n> A quoted line\n\n---\n\n```ts\nconst value = 42;\n```\n\n| Name | State |\n| --- | --- |\n| Onyx | Ready |",
+  );
+
+  const live = page.locator(".preview-pane .live-editor");
+  await expect(live.locator(".live-editable-line em")).toHaveText("italic");
+  await expect(live.locator(".live-table-row.header")).toBeVisible();
+  await expect(live.locator(".live-table-row.body")).toBeVisible();
+  await expect(live.locator(".live-editable-line.code-content")).toHaveText("const value = 42;");
+  await expect(live.locator(".live-editable-line.code-content .hljs-keyword")).toHaveText("const");
+  await expect(live.locator(".live-editable-line.code-content .hljs-number")).toHaveText("42");
+  await expect(live.locator('.live-editable-line.code-end[data-code-language="TS"]')).toHaveCount(
+    1,
+  );
+  const editableMarkup = await live.locator(".live-rendered-content").innerHTML();
+  await page.locator(".preview-pane").evaluate((pane) => {
+    pane.scrollTop = 0;
+    pane.querySelector<HTMLElement>(".live-editor")!.scrollTop = 0;
+  });
+
+  const editableGeometry = await live.evaluate((container) => {
+    const rectOf = (selector: string) => {
+      const rect = container.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+    };
+    const listRect = (selector: string) => {
+      const listLines = [...container.querySelectorAll<HTMLElement>(selector)];
+      const firstList = listLines[0]?.getBoundingClientRect();
+      const lastList = listLines.at(-1)?.getBoundingClientRect();
+      return firstList && lastList
+        ? {
+            x: firstList.x,
+            y: firstList.y,
+            width: firstList.width,
+            height: lastList.bottom - firstList.y,
+          }
+        : null;
+    };
+    return [
+      rectOf(".heading-1"),
+      rectOf(
+        ".live-editable-line:not([class*='heading-']):not(.blank-line):not(.list-line):not(.quote-line):not(.rule-line):not(.code-line):not(.table-line)",
+      ),
+      rectOf(".heading-2"),
+      listRect(".list-line:not(.ordered-list)"),
+      listRect(".list-line.ordered-list"),
+      rectOf(".quote-line"),
+      rectOf(".rule-line"),
+      rectOf(".code-content"),
+    ];
+  });
+
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.getByRole("button", { name: "Turn on read-only" }).click();
+  const article = page.locator(".preview-pane article.prose");
+  expect(await article.innerHTML()).toBe(editableMarkup);
+  await expect(article.locator("table")).toBeVisible();
+  await expect(article.locator("ul")).toHaveCSS("list-style-type", "disc");
+  await expect(article.locator("ol")).toHaveCSS("list-style-type", "decimal");
+  await expect(article.locator("pre code.hljs")).toHaveCount(1);
+  await expect(article.locator('pre[data-code-language="TS"]')).toHaveCount(1);
+  await expect(article.locator(".hljs-keyword")).toHaveText("const");
+  await expect(article.locator(".hljs-number")).toHaveText("42");
+  await page.locator(".preview-pane").evaluate((pane) => {
+    pane.scrollTop = 0;
+  });
+
+  const readOnlyGeometry = await article.evaluate((container) => {
+    const selectors = ["h1", "p", "h2", "ul", "ol", "blockquote", "hr", "pre"];
+    return selectors.map((selector) => {
+      const rect = container.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+    });
+  });
+
+  expect(editableGeometry).toHaveLength(readOnlyGeometry.length);
+  editableGeometry.forEach((editable, index) => {
+    const readOnly = readOnlyGeometry[index];
+    expect(editable).not.toBeNull();
+    expect(readOnly).not.toBeNull();
+    expect(Math.abs(editable!.x - readOnly!.x), `geometry ${index} x`).toBeLessThan(1);
+    expect(Math.abs(editable!.y - readOnly!.y), `geometry ${index} y`).toBeLessThan(1);
+    expect(Math.abs(editable!.width - readOnly!.width), `geometry ${index} width`).toBeLessThan(1);
+    expect(Math.abs(editable!.height - readOnly!.height), `geometry ${index} height`).toBeLessThan(
+      1,
+    );
+  });
 });
 
 test("keeps both panes synchronized and lets each pane be tucked away", async ({ page }) => {
