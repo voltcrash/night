@@ -768,6 +768,19 @@ kbd {
 .espresso-preview i:last-child {
   background: #d9822b;
 }
+.ink-preview {
+  border-color: #cbd8e6;
+  background: #f8fbff;
+}
+.ink-preview i:first-child {
+  background: #eef4fa;
+}
+.ink-preview i:nth-child(2) {
+  background: #22324a;
+}
+.ink-preview i:last-child {
+  background: #315fc4;
+}
 .lavender-preview {
   border-color: #d8d1e3;
   background: #fbfaff;

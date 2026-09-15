@@ -825,6 +825,106 @@
   --on-solid: #261e1b;
 }
 
+:root[data-color-theme="ink"] {
+  color-scheme: light;
+
+  --ink: #22324a;
+  --ink-strong: #192942;
+  --ink-body: #30435f;
+  --ink-soft: #5b6d88;
+  --muted: #7b8ca5;
+  --faint: #a8b6c9;
+
+  --canvas: #eaf0f7;
+  --paper: #f8fbff;
+  --surface: #ffffff;
+  --surface-soft: #f3f7fb;
+  --sidebar: #eef4fa;
+  --editor: #fbfdff;
+  --subtle: #e8eff7;
+  --subtle-strong: #dce6f1;
+  --chip: #dce6f1;
+  --selected: #d2e0ef;
+
+  --line-soft: #dfe8f2;
+  --line: #cbd8e6;
+  --line-strong: #b8c8da;
+  --line-hover: #96adca;
+
+  --accent: #315fc4;
+  --accent-strong: #264fa7;
+  --accent-quiet: #496da9;
+  --accent-link: #2755b0;
+  --accent-underline: #9ab3dc;
+  --accent-border: #a9bee2;
+  --accent-bg: #eef4ff;
+  --accent-bg-strong: #e2ebff;
+  --focus-border: #82a0d0;
+  --focus-ring: #d9e5fb;
+  --selection: #c8d8f3;
+
+  --inverse-bg: #233a63;
+  --inverse-border: #3d5884;
+  --inverse-hover: #4b6a9d;
+  --inverse-text: #f7faff;
+  --inverse-muted: #c7d5e9;
+  --code-bg: #1a2b4c;
+  --code-text: #edf3ff;
+
+  --solid-bg: #22324a;
+  --on-solid: #ffffff;
+}
+
+:root[data-color-theme="ink"][data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #dbe6f6;
+  --ink-strong: #f3f7ff;
+  --ink-body: #ccd9ed;
+  --ink-soft: #aabbda;
+  --muted: #8597b2;
+  --faint: #667a98;
+
+  --canvas: #0e1728;
+  --paper: #16233a;
+  --surface: #1d2e49;
+  --surface-soft: #223653;
+  --sidebar: #121e32;
+  --editor: #192941;
+  --subtle: #263b59;
+  --subtle-strong: #30496b;
+  --chip: #30496b;
+  --selected: #3b577c;
+
+  --line-soft: #26384f;
+  --line: #374d68;
+  --line-strong: #4a6380;
+  --line-hover: #6684a6;
+
+  --accent: #7da4f5;
+  --accent-strong: #91b4ff;
+  --accent-quiet: #acc7ff;
+  --accent-link: #8cadff;
+  --accent-underline: #47659a;
+  --accent-border: #3e5f9f;
+  --accent-bg: #17284a;
+  --accent-bg-strong: #203965;
+  --focus-border: #5f82c5;
+  --focus-ring: #2b416a;
+  --selection: #2e4c7b;
+
+  --inverse-bg: #e5edfa;
+  --inverse-border: #b9c8df;
+  --inverse-hover: #ccd9ec;
+  --inverse-text: #16233a;
+  --inverse-muted: #5b6c86;
+  --code-bg: #091221;
+  --code-text: #dfe9fa;
+
+  --solid-bg: #e7effd;
+  --on-solid: #15233a;
+}
+
 :root[data-color-theme="lavender"] {
   color-scheme: light;
 
