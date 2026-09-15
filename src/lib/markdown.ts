@@ -1,4 +1,5 @@
 import rehypeKatex from "rehype-katex";
+import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize, { defaultSchema, type Options } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
@@ -34,6 +35,51 @@ export type RemoteImagePolicy = "block" | "allow";
 export interface MarkdownRenderOptions {
   remoteImages?: RemoteImagePolicy;
 }
+
+const CODE_LANGUAGE_LABELS: Record<string, string> = {
+  bash: "SH",
+  c: "C",
+  "c++": "C++",
+  csharp: "C#",
+  css: "CSS",
+  diff: "DIFF",
+  docker: "DOCKER",
+  dockerfile: "DOCKER",
+  go: "GO",
+  gql: "GQL",
+  graphql: "GQL",
+  html: "HTML",
+  java: "JAVA",
+  javascript: "JS",
+  js: "JS",
+  json: "JSON",
+  jsx: "JSX",
+  kotlin: "KT",
+  markdown: "MD",
+  md: "MD",
+  php: "PHP",
+  plaintext: "TXT",
+  "plain-text": "TXT",
+  py: "PY",
+  python: "PY",
+  rb: "RB",
+  ruby: "RB",
+  rust: "RS",
+  scss: "SCSS",
+  sh: "SH",
+  shell: "SH",
+  sql: "SQL",
+  svelte: "SVELTE",
+  swift: "SWIFT",
+  ts: "TS",
+  typescript: "TS",
+  tsx: "TSX",
+  txt: "TXT",
+  xml: "XML",
+  yaml: "YAML",
+  yml: "YAML",
+  zsh: "SH",
+};
 
 // Sanitizing strips generated ids of their prefix-free form, so anchors are re-pointed after.
 const ID_PREFIX = "user-content-";
@@ -107,6 +153,29 @@ export function renderMarkdown(
     .join("");
 }
 
+export function codeLanguageLabel(language: string): string {
+  const normalized = language.trim().split(/\s+/)[0] ?? "";
+  if (!normalized) return "";
+  return (
+    CODE_LANGUAGE_LABELS[normalized.toLowerCase()] ??
+    normalized.replace(/[-_]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())
+  );
+}
+
+/** Highlights a fenced block and returns HTML for each code line, preserving token spans across lines. */
+export function highlightCodeLines(source: string, language: string): string[] {
+  const normalizedLanguage = language.trim().split(/\s+/)[0] ?? "";
+  if (!normalizedLanguage) return source.split("\n").map(escapeHtml);
+
+  const marker = "`".repeat(Math.max(3, longestBacktickRun(source) + 1));
+  const rendered = renderMarkdown(`${marker}${normalizedLanguage}\n${source}\n${marker}`);
+  const inner = rendered.match(
+    /^<pre(?:\s[^>]*)?><code(?:\s[^>]*)?>([\s\S]*)<\/code><\/pre>$/,
+  )?.[1];
+  if (inner === undefined) return source.split("\n").map(escapeHtml);
+  return splitHighlightedLines(inner.endsWith("\n") ? inner.slice(0, -1) : inner);
+}
+
 /**
  * Renders a note as its top-level nodes, which join into the HTML of `renderMarkdown`. Elements
  * carry the lines they came from, so views of the note can be lined up with its source.
@@ -118,7 +187,9 @@ export function renderMarkdownBlocks(
 ): RenderedBlock[] {
   const remoteImagePolicy = options.remoteImages ?? "block";
   const processor = markdownProcessor()
-    // KaTeX runs after sanitizing, as its output is generated rather than authored.
+    // Generated markup runs after sanitizing, so authored HTML stays constrained by the schema.
+    .use(rehypeHighlight)
+    .use(addCodeLanguage)
     .use(rehypeKatex, { output: "mathml" })
     .use(prefixInternalLinks);
   if (resolveLocalUrl || remoteImagePolicy === "block") {
@@ -147,6 +218,35 @@ export function renderMarkdownTree(source: string): MarkdownTreeNode {
   return processor.runSync(processor.parse(source)) as MarkdownTreeNode;
 }
 
+export function titleFromMarkdown(value: string, fallback = "Untitled"): string {
+  const firstLine =
+    stripFrontmatter(value)
+      .split("\n")
+      .find((line) => line.trim())
+      ?.trim() ?? "";
+  const title = firstLine
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/[*_`~[\]]/g, "")
+    .trim();
+  return title.slice(0, 80) || fallback;
+}
+
+function stripFrontmatter(value: string): string {
+  const lines = value.split(/\r?\n/);
+  let firstContentLine = 0;
+  while (firstContentLine < lines.length && !lines[firstContentLine]!.trim()) firstContentLine += 1;
+  const opening = lines[firstContentLine]?.trim();
+  if (opening !== "---" && opening !== "+++") return value;
+
+  for (let index = firstContentLine + 1; index < lines.length; index += 1) {
+    const line = lines[index]!.trim();
+    if (line === opening || (opening === "---" && line === "...")) {
+      return lines.slice(index + 1).join("\n");
+    }
+  }
+  return value;
+}
+
 function markdownProcessor() {
   return (
     unified()
@@ -167,6 +267,75 @@ function markdownProcessor() {
 
 function noHandler(): undefined {
   return undefined;
+}
+
+const addCodeLanguage: Plugin<[]> = () => (tree) => {
+  visit(tree as MarkdownTreeNode, (node) => {
+    if (node.tagName !== "pre") return;
+    const code = node.children?.find((child) => child.tagName === "code");
+    const classes = code?.properties?.className;
+    const classNames = Array.isArray(classes) ? classes : [classes];
+    const languageClass = classNames.find(
+      (className): className is string =>
+        typeof className === "string" && className.startsWith("language-"),
+    );
+    if (!languageClass) return;
+    const label = codeLanguageLabel(languageClass.slice("language-".length));
+    if (label) node.properties = { ...node.properties, "data-code-language": label };
+  });
+};
+
+function longestBacktickRun(value: string): number {
+  let longest = 0;
+  for (const match of value.matchAll(/`+/g)) longest = Math.max(longest, match[0].length);
+  return longest;
+}
+
+function splitHighlightedLines(value: string): string[] {
+  const lines: string[] = [];
+  const openTags: string[] = [];
+  const tags = /<\/?span(?:\s[^>]*)?>/gi;
+  let line = "";
+  let cursor = 0;
+
+  const appendText = (text: string): void => {
+    let start = 0;
+    let newline = text.indexOf("\n", start);
+    while (newline !== -1) {
+      line += text.slice(start, newline);
+      line += openTags
+        .map(() => "</span>")
+        .reverse()
+        .join("");
+      lines.push(line);
+      line = openTags.join("");
+      start = newline + 1;
+      newline = text.indexOf("\n", start);
+    }
+    line += text.slice(start);
+  };
+
+  for (const match of value.matchAll(tags)) {
+    const start = match.index ?? 0;
+    appendText(value.slice(cursor, start));
+    const tag = match[0];
+    line += tag;
+    if (tag.startsWith("</")) openTags.pop();
+    else openTags.push(tag);
+    cursor = start + tag.length;
+  }
+  appendText(value.slice(cursor));
+  lines.push(line);
+  return lines;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 // Sanitizing rewrites every id to avoid DOM clobbering; hash links have to follow it.

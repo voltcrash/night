@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { renderMarkdown, renderMarkdownBlocks, resolveLocalAttachmentUrl } from "./markdown.js";
+import {
+  codeLanguageLabel,
+  highlightCodeLines,
+  renderMarkdown,
+  renderMarkdownBlocks,
+  resolveLocalAttachmentUrl,
+  titleFromMarkdown,
+} from "./markdown.js";
+
+describe("titleFromMarkdown", () => {
+  it("ignores YAML and TOML front matter", () => {
+    expect(titleFromMarkdown("---\ntitle: Hidden\n---\n\n# Heading")).toBe("Heading");
+    expect(titleFromMarkdown("+++\ntitle = 'Hidden'\n+++\n\nBody")).toBe("Body");
+  });
+
+  it("supports YAML's alternate closing marker", () => {
+    expect(titleFromMarkdown("---\ntitle: Hidden\n...\n\n# Heading")).toBe("Heading");
+  });
+});
 
 describe("renderMarkdown", () => {
   it("renders CommonMark structure and GFM extensions", () => {
@@ -33,7 +51,10 @@ const answer = 42;
       '<li class="task-list-item"><input type="checkbox" checked disabled> Finished</li>',
     );
     expect(html).toContain("<blockquote>");
-    expect(html).toContain('<code class="language-ts">const answer = 42;');
+    expect(html).toContain('<code class="hljs language-ts">');
+    expect(html).toContain(
+      '<span class="hljs-keyword">const</span> answer = <span class="hljs-number">42</span>;',
+    );
     expect(html).toContain("<table>");
     expect(html).toContain('<th align="right">State</th>');
     expect(html).toContain('<a href="https://example.com">Website</a>');
@@ -149,6 +170,31 @@ A footnote[^1] and math $a^2$.
     const html = renderMarkdown("a ~ b ~ c and 2 ^ 3 ^ 4");
 
     expect(html).toBe("<p>a ~ b ~ c and 2 ^ 3 ^ 4</p>");
+  });
+
+  it("highlights labeled code blocks without guessing unlabeled code", () => {
+    const highlighted = renderMarkdown("```js\nconst answer = 42;\n```");
+    const plain = renderMarkdown("```\nconst answer = 42;\n```");
+
+    expect(highlighted).toContain('<pre data-code-language="JS">');
+    expect(highlighted).toContain('<code class="hljs language-js">');
+    expect(highlighted).toContain('<span class="hljs-keyword">const</span>');
+    expect(highlighted).toContain('<span class="hljs-number">42</span>');
+    expect(plain).toBe("<pre><code>const answer = 42;\n</code></pre>");
+  });
+
+  it("uses concise names for code language labels", () => {
+    expect(codeLanguageLabel("ts")).toBe("TS");
+    expect(codeLanguageLabel("javascript")).toBe("JS");
+    expect(codeLanguageLabel("custom-lang")).toBe("Custom Lang");
+  });
+
+  it("keeps highlighted tokens available one line at a time for live preview", () => {
+    const lines = highlightCodeLines("/* first line\nsecond line */", "js");
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('<span class="hljs-comment">/* first line</span>');
+    expect(lines[1]).toContain('<span class="hljs-comment">second line */</span>');
   });
 });
 

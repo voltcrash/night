@@ -149,7 +149,24 @@ export function createHtmlDocument({ title, body }: HtmlDocumentOptions): string
       h1 { margin-top: 0; }
       a { color: inherit; }
       code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
-      pre { overflow-x: auto; padding: 1rem; border-radius: 8px; background: rgb(128 128 128 / 0.12); }
+      pre { overflow-x: auto; padding: 1rem; border-radius: 8px; background: #282724; color: #f4f2ec; }
+      pre[data-code-language] { position: relative; }
+      pre[data-code-language]::before { content: attr(data-code-language); position: absolute; bottom: 0.55rem; right: 1rem; color: #8b949e; font: 600 0.5rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.03em; white-space: nowrap; }
+      pre code.hljs { display: block; overflow-x: auto; padding: 0; background: transparent; font-size: inherit; }
+      pre code .hljs-comment, pre code .hljs-quote, pre code .hljs-doctag { color: #8b949e; font-style: italic; }
+      pre code .hljs-keyword, pre code .hljs-selector-tag, pre code .hljs-literal, pre code .hljs-section, pre code .hljs-name { color: #ff7b72; }
+      pre code .hljs-string, pre code .hljs-regexp { color: #a5d6ff; }
+      pre code .hljs-attribute, pre code .hljs-attr { color: #79c0ff; }
+      pre code .hljs-number, pre code .hljs-symbol, pre code .hljs-bullet { color: #79c0ff; }
+      pre code .hljs-title, pre code .hljs-title.class_, pre code .hljs-title.function_ { color: #d2a8ff; }
+      pre code .hljs-variable, pre code .hljs-template-variable, pre code .hljs-type, pre code .hljs-built_in, pre code .hljs-selector-class, pre code .hljs-selector-id, pre code .hljs-selector-attr, pre code .hljs-selector-pseudo { color: #ffa657; }
+      pre code .hljs-meta, pre code .hljs-meta .hljs-string, pre code .hljs-params { color: #d2a8ff; }
+      pre code .hljs-tag { color: #7ee787; }
+      pre code .hljs-addition { color: #aff5b4; }
+      pre code .hljs-deletion { color: #ffa198; }
+      pre code .hljs-link { color: #a5d6ff; text-decoration: underline; }
+      pre code .hljs-emphasis { font-style: italic; }
+      pre code .hljs-strong { font-weight: 700; }
       blockquote { margin: 1.5em 0; padding-left: 1.1em; border-left: 3px solid currentColor; opacity: 0.85; }
       img { max-width: 100%; height: auto; }
       table { width: 100%; border-collapse: collapse; }

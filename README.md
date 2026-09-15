@@ -8,7 +8,10 @@ adds private backup and cross-device restore.
 
 - Create and autosave Markdown notes locally.
 - Search note titles and contents from an on-device index.
-- Write in source, rendered inline, split, or read-only preview mode.
+- Write in the Markdown source and see the rendered page update alongside it; the page can also be
+  made read-only.
+- Syntax-highlight fenced code blocks and show a short language label when the opening fence names
+  a language; the same markup is preserved in rich-text, PDF, and HTML output.
 - Point just beside the divider to reveal a pane's grip, drag it to any side of the workspace to place the panes side by side or stacked, and drag the divider to resize them.
 - Switch the output pane between the Markdown source, plain text, rich text, the generated HTML,
   and a printed-page preview. Plain text copies to the clipboard or downloads as a text file, rich
@@ -31,18 +34,23 @@ use a slide-over note list. Preferences are saved per browser when local storage
 
 ## Keyboard shortcuts
 
-| Shortcut       | Action                               |
-| -------------- | ------------------------------------ |
-| `⌘ K`          | Open command palette                 |
-| `⌘ ⇧ F` or `/` | Search all notes                     |
-| `⌘ ⏎`          | Create a note                        |
-| `⌘ S`          | Save the active note                 |
-| `⌘ B` / `⌘ I`  | Format selected text                 |
-| `⌘ ⇧ P`        | Toggle source/preview                |
-| `⌘ \`          | Toggle the note sidebar              |
-| `⌘ ⇧ L`        | Cycle light, dark, and system themes |
-| `?`            | Show all shortcuts                   |
-| `Esc`          | Close the active panel               |
+| Shortcut        | Action                               |
+| --------------- | ------------------------------------ |
+| `⌘ K`           | Open command palette                 |
+| `⌘ ⇧ F` or `/`  | Search all notes                     |
+| `⌘ ⏎`           | Create a note                        |
+| `⌘ S`           | Save the active note                 |
+| `⌘ X` / `⌘ C`   | Cut or copy the current selection    |
+| `⌘ V`           | Paste into the active editor         |
+| `⌘ Z`           | Undo the last edit                   |
+| `⌘ ⇧ Z` / `⌘ Y` | Redo the last undone edit            |
+| `⌘ A`           | Select all Markdown                  |
+| `⌘ B` / `⌘ I`   | Format selected text                 |
+| `⌘ ⇧ P`         | Toggle source/preview                |
+| `⌘ \`           | Toggle the note sidebar              |
+| `⌘ ⇧ L`         | Cycle light, dark, and system themes |
+| `?`             | Show all shortcuts                   |
+| `Esc`           | Close the active panel               |
 
 Use `Ctrl` instead of `⌘` on Windows and Linux.
 

@@ -39,7 +39,6 @@
 		primaryModifier={page.primaryModifier}
 		renderedPaneVisible={page.renderedPaneVisible}
 		renderedReadOnly={page.renderedReadOnly}
-		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		wordCount={page.wordCount}
 		readingMinutes={page.readingMinutes}
 		contentWidth={page.contentWidth}
@@ -60,7 +59,6 @@
 		onInsertSyntax={(before, after, placeholder) => void page.insertSyntax(before, after, placeholder)}
 		onPrefixLine={(prefix) => void page.prefixLine(prefix)}
 		onToggleRenderedReadOnly={page.toggleRenderedReadOnly}
-		onToggleInlinePreview={page.toggleInlinePreview}
 		onContentWidthChange={page.setContentWidth}
 	/>
 
@@ -76,20 +74,18 @@
 		plainTextBlocks={page.plainTextBlocks}
 		htmlSource={page.htmlSource}
 		htmlSourceBlocks={page.htmlSourceBlocks}
-		renderedBlockLines={page.renderedBlockLines}
+		renderedBlockLines={page.liveRenderedBlockLines}
 		renderedReadOnly={page.renderedReadOnly}
-		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		markdown={page.markdown}
 		markdownLines={page.markdownLines}
 		liveLine={page.liveLine}
 		saveState={page.saveState}
 		transferState={page.transferState}
 		hasContent={page.hasContent}
-		renderedMarkdown={page.renderedMarkdown}
+		renderedMarkdown={page.liveRenderedMarkdown}
 		shortcuts={page.shortcuts}
 		primaryModifier={page.primaryModifier}
 		bind:editor={page.editor}
-		bind:liveEditor={page.liveEditor}
 		bind:liveEditorContainer={page.liveEditorContainer}
 		onRetryStorage={() => void (page.vault ? page.saveDraft() : page.openVault())}
 		onDismissStorageNotice={page.dismissStorageNotice}
@@ -106,16 +102,17 @@
 		onPlacePane={page.placePane}
 		onReload={() => location.reload()}
 		onMarkdownChange={page.updateMarkdown}
+		onEditorBeforeInput={page.captureEditorState}
+		onEditorCopy={page.handleEditorCopy}
+		onEditorCut={page.handleEditorCut}
+		onEditorPaste={page.handleEditorPaste}
 		onSourceFocus={page.focusSourceEditor}
 		onLiveLineFocus={page.focusLiveLine}
-		onRenderedLineInput={page.updateRenderedLine}
+		onRenderedInput={page.updateRenderedInput}
 		onRenderedLineKeydown={page.handleRenderedLineKeydown}
-		onLiveLineChange={page.updateLiveLine}
-		onLiveLineKeydown={page.handleLiveLineKeydown}
-		onActivateLiveLine={page.activateLiveLine}
 		renderEditableLine={page.renderEditableLine}
-		renderLiveLine={page.renderLiveLine}
 		liveLineKind={page.liveLineKind}
+		liveCodeLanguage={page.liveCodeLanguage}
 	/>
 </div>
 
