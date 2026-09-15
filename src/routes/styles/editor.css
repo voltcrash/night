@@ -554,6 +554,11 @@
   color: transparent;
   white-space: pre;
 }
+.prose em,
+.live-editable-line em,
+.live-rendered-line em {
+  font-synthesis: style;
+}
 /* Headings carry their own face in both editing surfaces and the preview. */
 .live-editable-line:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6),
 .live-rendered-line :is(h1, h2, h3, h4, h5, h6) {

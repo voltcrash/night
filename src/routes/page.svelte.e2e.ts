@@ -315,9 +315,13 @@ test("formats Markdown while editing in the page pane", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
 
   const line = page.getByRole("textbox", { name: "Markdown line 3" });
-  await line.fill("Onyx renders **Markdown** while you keep writing.");
-  await expect(line).toContainText("Onyx renders **Markdown** while you keep writing.");
+  await line.fill("Onyx renders **Markdown** and _italic_ while you keep writing.");
+  await expect(line).toContainText(
+    "Onyx renders **Markdown** and _italic_ while you keep writing.",
+  );
   await expect(line.locator("strong")).toHaveText("Markdown");
+  await expect(line.locator("em")).toHaveText("italic");
+  await expect(line.locator("em")).toHaveCSS("font-synthesis", "style");
 
   await line.fill("#");
   await expect(line).not.toHaveClass(/heading-1/);
