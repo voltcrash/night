@@ -306,7 +306,7 @@
 				{#if section === 'editor'}
 					<div class="settings-section-heading">
 						<div><h3>Editor</h3><p class="settings-hint">Set the typefaces your notes are written in</p></div>
-						<button class="settings-secondary" disabled={fontsAreDefault} onclick={onResetFonts}>Restore default fonts</button>
+						{#if !fontsAreDefault}<button class="settings-secondary" onclick={onResetFonts}>Restore default fonts</button>{/if}
 					</div>
 
 		<div class="type-specimen" aria-label="Typography preview">

@@ -103,6 +103,12 @@ test("opens general settings on Editor and the storage shortcut on Storage choic
     "page",
   );
   await expect(page.getByRole("heading", { name: "Editor", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Restore default fonts" })).toHaveCount(0);
+
+  await page.locator("#font-heading").selectOption("inter");
+  await expect(page.getByRole("button", { name: "Restore default fonts" })).toBeVisible();
+  await page.getByRole("button", { name: "Restore default fonts" }).click();
+  await expect(page.getByRole("button", { name: "Restore default fonts" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Close settings" }).click();
   await page.getByRole("button", { name: "Open local storage settings" }).click();
