@@ -8,5 +8,3 @@ export type SettingsSection =
   | "storage"
   | "transfer"
   | "vault";
-
-export type InlinePreviewBehavior = "rendered" | "source-line";

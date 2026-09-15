@@ -1,7 +1,3 @@
-<script module lang="ts">
-	export type { InlinePreviewBehavior, SettingsSection } from './settings-types';
-</script>
-
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import {
