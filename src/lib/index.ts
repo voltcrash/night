@@ -25,6 +25,7 @@ export {
 export {
   applyColorTheme,
   applyTheme,
+  colorThemeOptions,
   nextThemePreference,
   readColorTheme,
   readThemePreference,

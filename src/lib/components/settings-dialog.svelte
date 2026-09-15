@@ -8,7 +8,7 @@
 	import {
 		listGithubRepositories, type GithubBackupState, type GithubRepository, type GithubUser,
 		defaultFontChoices, fontOptions, fontRoles,
-		formatShortcut, persistenceDeniedMessage, shortcutActions, shortcutFromEvent, shortcutParts, shortcutsEqual, type ColorTheme,
+		colorThemeOptions, formatShortcut, persistenceDeniedMessage, shortcutActions, shortcutFromEvent, shortcutParts, shortcutsEqual, type ColorTheme,
 		type FontChoices, type FontRole,
 		type KeyboardShortcut, type KeyboardShortcuts, type PrimaryModifier, type ResolvedTheme, type ShortcutAction, type ThemePreference,
 		type Vault, type VaultStorageUsage
@@ -102,10 +102,6 @@
 		{ id: 'light', label: 'Light', hint: 'Warm paper for bright rooms.' },
 		{ id: 'dark', label: 'Dark', hint: 'Low-glare onyx for night writing.' },
 		{ id: 'system', label: 'System', hint: 'Follow your operating system automatically.' }
-	];
-	const themes: Array<{ id: ColorTheme; label: string; hint: string }> = [
-		{ id: 'ember', label: 'Ember', hint: 'Warm paper with a terracotta accent.' },
-		{ id: 'monochrome', label: 'Monochrome', hint: 'Pure black and white, with no accent hue.' }
 	];
 	const fontsAreDefault = $derived(
 		fontRoles.every(({ id }) => fonts[id] === defaultFontChoices[id])
@@ -341,7 +337,7 @@
 					</div>
 					<h4 class="theme-section-title">Color theme</h4>
 					<div class="theme-options" role="radiogroup" aria-label="Color theme">
-						{#each themes as option (option.id)}
+						{#each colorThemeOptions as option (option.id)}
 							<button class:active={colorTheme === option.id} role="radio" aria-checked={colorTheme === option.id} onclick={() => onColorThemeChange(option.id)}>
 								<span class="theme-preview {option.id}-preview" aria-hidden="true"><i></i><i></i><i></i></span>
 								<span><strong>{option.label}</strong><small>{option.hint}</small></span>
