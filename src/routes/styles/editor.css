@@ -872,6 +872,14 @@
   margin: 12px 0 22px;
   padding-left: 24px;
 }
+.prose ul,
+.live-rendered-line ul {
+  list-style-type: disc;
+}
+.prose ol,
+.live-rendered-line ol {
+  list-style-type: decimal;
+}
 .prose li > :is(ul, ol) {
   margin: 5px 0 8px;
 }

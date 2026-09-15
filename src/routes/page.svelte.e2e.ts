@@ -399,6 +399,8 @@ test("keeps the editable page preview aligned with read-only rendering", async (
   await page.getByRole("button", { name: "Turn on read-only" }).click();
   const article = page.locator(".preview-pane article.prose");
   await expect(article.locator("table")).toBeVisible();
+  await expect(article.locator("ul")).toHaveCSS("list-style-type", "disc");
+  await expect(article.locator("ol")).toHaveCSS("list-style-type", "decimal");
   await expect(article.locator("pre code.hljs")).toHaveCount(1);
   await expect(article.locator('pre[data-code-language="TS"]')).toHaveCount(1);
   await expect(article.locator(".hljs-keyword")).toHaveText("const");
