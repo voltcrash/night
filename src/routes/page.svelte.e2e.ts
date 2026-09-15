@@ -355,9 +355,9 @@ test("keeps the editable page preview aligned with read-only rendering", async (
   await expect(live.locator(".live-editable-line.code-content")).toHaveText("const value = 42;");
   await expect(live.locator(".live-editable-line.code-content .hljs-keyword")).toHaveText("const");
   await expect(live.locator(".live-editable-line.code-content .hljs-number")).toHaveText("42");
-  await expect(
-    live.locator('.live-editable-line.code-start[data-code-language="TypeScript"]'),
-  ).toHaveCount(1);
+  await expect(live.locator('.live-editable-line.code-end[data-code-language="TS"]')).toHaveCount(
+    1,
+  );
   await page.locator(".preview-pane").evaluate((pane) => {
     pane.scrollTop = 0;
     pane.querySelector<HTMLElement>(".live-editor")!.scrollTop = 0;
@@ -400,7 +400,7 @@ test("keeps the editable page preview aligned with read-only rendering", async (
   const article = page.locator(".preview-pane article.prose");
   await expect(article.locator("table")).toBeVisible();
   await expect(article.locator("pre code.hljs")).toHaveCount(1);
-  await expect(article.locator('pre[data-code-language="TypeScript"]')).toHaveCount(1);
+  await expect(article.locator('pre[data-code-language="TS"]')).toHaveCount(1);
   await expect(article.locator(".hljs-keyword")).toHaveText("const");
   await expect(article.locator(".hljs-number")).toHaveText("42");
   await page.locator(".preview-pane").evaluate((pane) => {

@@ -151,7 +151,7 @@ export function createHtmlDocument({ title, body }: HtmlDocumentOptions): string
       code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
       pre { overflow-x: auto; padding: 1rem; border-radius: 8px; background: #282724; color: #f4f2ec; }
       pre[data-code-language] { position: relative; }
-      pre[data-code-language]::before { content: attr(data-code-language); position: absolute; top: 0.55rem; left: 1rem; color: #8b949e; font: 600 0.5rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.03em; white-space: nowrap; }
+      pre[data-code-language]::before { content: attr(data-code-language); position: absolute; bottom: 0.55rem; right: 1rem; color: #8b949e; font: 600 0.5rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.03em; white-space: nowrap; }
       pre code.hljs { display: block; overflow-x: auto; padding: 0; background: transparent; font-size: inherit; }
       pre code .hljs-comment, pre code .hljs-quote, pre code .hljs-doctag { color: #8b949e; font-style: italic; }
       pre code .hljs-keyword, pre code .hljs-selector-tag, pre code .hljs-literal, pre code .hljs-section, pre code .hljs-name { color: #ff7b72; }

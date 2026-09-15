@@ -911,11 +911,11 @@
   position: relative;
 }
 .prose pre[data-code-language]::before,
-.live-editor.prose .live-editable-line.code-content.code-start[data-code-language]::before {
+.live-editor.prose .live-editable-line.code-content.code-end[data-code-language]::before {
   content: attr(data-code-language);
   position: absolute;
-  top: 8px;
-  left: 18px;
+  bottom: 8px;
+  right: 18px;
   color: var(--code-syntax-comment);
   font: 600 8px / 1.2 var(--font-code);
   letter-spacing: 0.03em;

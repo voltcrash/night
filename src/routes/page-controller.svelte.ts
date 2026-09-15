@@ -2065,7 +2065,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       const language = liveCodeLanguages[index] ?? "";
       const highlighted = liveCodeHighlights.get(index) ?? escapeHtml(line);
       const className = language ? ` class="hljs language-${escapeHtml(language)}"` : "";
-      const label = isCodeBlockStart(index) ? liveCodeLanguage(index) : "";
+      const label = isCodeBlockEnd(index) ? liveCodeLanguage(index) : "";
       const languageAttribute = label ? ` data-code-language="${escapeHtml(label)}"` : "";
       return `<pre${languageAttribute}><code${className}>${highlighted || " "}</code></pre>`;
     }
@@ -2085,11 +2085,11 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     return /^\s*(?:`{3,}|~{3,})/.test(line);
   }
 
-  function isCodeBlockStart(index: number): boolean {
+  function isCodeBlockEnd(index: number): boolean {
     return Boolean(
       liveCodeLines[index] &&
       !isFenceLine(markdownLines[index] ?? "") &&
-      isFenceLine(markdownLines[index - 1] ?? ""),
+      (!liveCodeLines[index + 1] || isFenceLine(markdownLines[index + 1] ?? "")),
     );
   }
 
