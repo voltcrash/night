@@ -1240,7 +1240,10 @@
   min-width: 0;
   padding: 8px 11px;
   border: 1px solid var(--line-hover);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+}
+.live-editor.prose .live-table-cell > .md-syntax {
+  display: none;
 }
 .live-editor.prose .live-table-row.header .live-table-cell {
   color: var(--ink-strong);

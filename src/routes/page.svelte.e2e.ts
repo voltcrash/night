@@ -614,6 +614,31 @@ test("places the rendered caret on the visible text that was clicked", async ({ 
   }
 });
 
+test("places the rendered caret on table cell text", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "# Table\n\n| Name | State |\n| --- | --- |\n| Onyx | Ready |";
+  await markdown.fill(source);
+
+  for (const selector of [
+    ".live-rendered-content table td:nth-of-type(1)",
+    ".live-rendered-content table td:nth-of-type(2)",
+  ]) {
+    const point = await pointInsideRenderedText(page, selector, 2);
+    await page.mouse.click(point.x, point.y);
+    await expect
+      .poll(() => renderedSelectionDetails(page))
+      .toMatchObject({ anchorLine: "4", focusLine: "4" });
+    const selection = await renderedSelectionDetails(page);
+    expect(selection).not.toBeNull();
+    if (!selection) throw new Error("The browser did not expose the rendered caret");
+    expect(selection.rect.x).toBeGreaterThanOrEqual(point.left - 2);
+    expect(selection.rect.x).toBeLessThanOrEqual(point.right + 2);
+    expect(Math.abs(selection.rect.y - point.top)).toBeLessThan(3);
+  }
+});
+
 test("keeps drag selection continuous across formatted rendered blocks", async ({ page }) => {
   await page.goto("/");
   const markdown = page.getByRole("textbox", { name: "Markdown editor" });

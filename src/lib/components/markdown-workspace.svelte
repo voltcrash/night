@@ -90,6 +90,15 @@
 		return /^\s*(?:`{3,}|~{3,})/.test(line);
 	}
 
+	function isTableSeparatorLine(line: string): boolean {
+		const trimmed = line.trim();
+		if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return false;
+		return trimmed
+			.slice(1, -1)
+			.split(/(?<!\\)\|/)
+			.every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+	}
+
 	function measureLiveLines(): void {
 		if (!liveEditorContainer || renderedReadOnly) {
 			liveLineRects = [];
@@ -123,6 +132,46 @@
 						width,
 						height: itemRect.height,
 					};
+				});
+				return;
+			}
+			const tableRows = block.tagName === 'TABLE' ? [...block.querySelectorAll<HTMLElement>('tr')] : [];
+			if (tableRows.length) {
+				const tableColumnWidths = [...tableRows[0].children]
+					.filter((cell) => cell.matches('th, td'))
+					.map((cell) => cell.getBoundingClientRect().width);
+				let rowIndex = 0;
+				blockLines.forEach((line, offset) => {
+					const index = start + offset;
+					const row = tableRows[rowIndex];
+					if (isTableSeparatorLine(line)) {
+						const rowRect = row?.getBoundingClientRect();
+						rects[index] = {
+							top: rowRect ? rowRect.top - containerRect.top : blockRect.bottom - containerRect.top,
+							left: rowRect ? rowRect.left - containerRect.left : left,
+							width: rowRect?.width ?? width,
+							height: 0,
+						};
+						return;
+					}
+					if (!row) return;
+					const rowRect = row.getBoundingClientRect();
+					if (tableColumnWidths.length) {
+						const overlayRow = liveEditorContainer.querySelector<HTMLElement>(
+							`[data-live-line="${index}"] .live-table-row`,
+						);
+						overlayRow?.style.setProperty(
+							'grid-template-columns',
+							tableColumnWidths.map((columnWidth) => `${columnWidth}px`).join(' '),
+						);
+					}
+					rects[index] = {
+						top: rowRect.top - containerRect.top,
+						left: rowRect.left - containerRect.left,
+						width: rowRect.width,
+						height: rowRect.height,
+					};
+					rowIndex += 1;
 				});
 				return;
 			}
