@@ -11,6 +11,7 @@ export type ColorTheme =
   | "espresso"
   | "ink"
   | "lavender"
+  | "burgundy"
   | "rose"
   | "solarized";
 
@@ -43,7 +44,8 @@ export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; h
     label: "Lavender",
     hint: "Soft lilac surfaces with a thoughtful violet accent.",
   },
-  { id: "rose", label: "Rose", hint: "Blush paper with a warm berry accent." },
+  { id: "burgundy", label: "Burgundy", hint: "Deep wine surfaces with a restrained ruby accent." },
+  { id: "rose", label: "Rose", hint: "Soft pink paper with a lively rose accent." },
   {
     id: "solarized",
     label: "Solarized",
@@ -64,7 +66,8 @@ const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   espresso: { light: "#f7f3ee", dark: "#261e1b" },
   ink: { light: "#f8fbff", dark: "#16233a" },
   lavender: { light: "#fbfaff", dark: "#211a2a" },
-  rose: { light: "#fffafb", dark: "#25191d" },
+  burgundy: { light: "#fbf4f2", dark: "#28141b" },
+  rose: { light: "#fff8fc", dark: "#281523" },
   solarized: { light: "#fdf6e3", dark: "#073642" },
 };
 

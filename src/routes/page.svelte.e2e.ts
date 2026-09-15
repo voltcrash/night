@@ -208,7 +208,7 @@ test("offers additional color themes and persists the selection", async ({ page 
   await page.getByRole("button", { name: "Themes", exact: true }).click();
 
   const colorThemes = page.getByRole("radiogroup", { name: "Color theme" });
-  await expect(colorThemes.getByRole("radio")).toHaveCount(10);
+  await expect(colorThemes.getByRole("radio")).toHaveCount(11);
 
   for (const theme of [
     { id: "ember", label: "Ember" },
@@ -219,10 +219,13 @@ test("offers additional color themes and persists the selection", async ({ page 
     { id: "espresso", label: "Espresso" },
     { id: "ink", label: "Ink" },
     { id: "lavender", label: "Lavender" },
+    { id: "burgundy", label: "Burgundy" },
     { id: "rose", label: "Rose" },
     { id: "solarized", label: "Solarized" },
   ]) {
-    const option = colorThemes.getByRole("radio").filter({ hasText: theme.label });
+    const option = colorThemes.getByRole("radio").filter({
+      has: page.getByText(theme.label, { exact: true }),
+    });
     await expect(option).toHaveCount(1);
     await option.click();
     await expect(page.locator("html")).toHaveAttribute("data-color-theme", theme.id);

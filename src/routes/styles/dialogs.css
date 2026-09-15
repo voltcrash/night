@@ -841,18 +841,31 @@ kbd {
 .lavender-preview i:last-child {
   background: #7254a3;
 }
+.burgundy-preview {
+  border-color: #d8bdc3;
+  background: #fbf4f2;
+}
+.burgundy-preview i:first-child {
+  background: #f4e7e8;
+}
+.burgundy-preview i:nth-child(2) {
+  background: #28141b;
+}
+.burgundy-preview i:last-child {
+  background: #8f3049;
+}
 .rose-preview {
-  border-color: #e2d1d6;
-  background: #fffafb;
+  border-color: #dfc5d3;
+  background: #fff8fc;
 }
 .rose-preview i:first-child {
-  background: #faf1f3;
+  background: #f8eff5;
 }
 .rose-preview i:nth-child(2) {
-  background: #3d2a30;
+  background: #281523;
 }
 .rose-preview i:last-child {
-  background: #a84e60;
+  background: #c34f88;
 }
 .solarized-preview {
   border-color: #d3c9b2;
