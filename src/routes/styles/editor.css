@@ -1328,5 +1328,5 @@
 .live-editor.prose .live-editing-overlay .live-editable-line::selection,
 .live-editor.prose .live-editing-overlay .live-editable-line *::selection {
   color: transparent;
-  background: var(--selection);
+  background: color-mix(in srgb, var(--selection) 50%, transparent);
 }
