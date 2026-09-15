@@ -2068,43 +2068,76 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   }
 
   function editableInlineMarkdown(value: string): string {
-    return escapeHtml(value)
-      .replace(
-        /`([^`]+)`/g,
-        '<span class="md-syntax">`</span><code>$1</code><span class="md-syntax">`</span>',
-      )
-      .replace(
-        /(\*\*|__)(.+?)\1/g,
-        '<span class="md-syntax">$1</span><strong>$2</strong><span class="md-syntax">$1</span>',
-      )
-      .replace(
-        /(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)/g,
-        '<span class="md-syntax">_</span><em>$1$2</em><span class="md-syntax">_</span>',
-      )
-      .replace(
-        /~~([^~]+)~~/g,
-        '<span class="md-syntax">~~</span><del>$1</del><span class="md-syntax">~~</span>',
-      )
-      .replace(
-        /==([^=]+)==/g,
-        '<span class="md-syntax">==</span><mark>$1</mark><span class="md-syntax">==</span>',
-      )
-      .replace(
-        /\[\[([^\]|]+)\|([^\]]+)\]\]/g,
-        '<span class="md-syntax">[[$1|</span><a class="wikilink">$2</a><span class="md-syntax">]]</span>',
-      )
-      .replace(
-        /\[\[([^\]]+)\]\]/g,
-        '<span class="md-syntax">[[</span><a class="wikilink">$1</a><span class="md-syntax">]]</span>',
-      )
-      .replace(
-        /\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g,
-        '<span class="md-syntax">[</span><a>$1</a><span class="md-syntax">]($2)</span>',
-      )
-      .replace(
-        /\[([^\]]+)\]\(([^\s)]+)\)/g,
-        '<span class="md-syntax">[</span><a>$1</a><span class="md-syntax">]($2)</span>',
-      );
+    const patterns = [
+      /`([^`]+)`/,
+      /\[\[([^\]|]+)\|([^\]]+)\]\]/,
+      /\[\[([^\]]+)\]\]/,
+      /\[([^\]]+)\]\(([^\s)]+)\)/,
+      /(\*\*|__)(.+?)\1/,
+      /~~([^~]+)~~/,
+      /==([^=]+)==/,
+      /(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)/,
+    ] as const;
+
+    const syntax = (source: string) => `<span class="md-syntax">${escapeHtml(source)}</span>`;
+    let rendered = "";
+    let cursor = 0;
+
+    while (cursor < value.length) {
+      const remaining = value.slice(cursor);
+      let tokenIndex = -1;
+      let token: RegExpMatchArray | undefined;
+      let tokenStart = remaining.length;
+
+      patterns.forEach((pattern, index) => {
+        const match = remaining.match(pattern);
+        if (match && match.index !== undefined && match.index < tokenStart) {
+          tokenIndex = index;
+          token = match;
+          tokenStart = match.index;
+        }
+      });
+
+      if (!token || tokenIndex < 0) {
+        rendered += escapeHtml(remaining);
+        break;
+      }
+
+      rendered += escapeHtml(remaining.slice(0, tokenStart));
+      const full = token[0];
+      switch (tokenIndex) {
+        case 0:
+          rendered += `${syntax("`")}<code>${escapeHtml(token[1]!)}</code>${syntax("`")}`;
+          break;
+        case 1:
+          rendered += `${syntax(`[[${token[1]}|`)}<a class="wikilink">${editableInlineMarkdown(token[2]!)}</a>${syntax("]]")}`;
+          break;
+        case 2:
+          rendered += `${syntax("[[")}<a class="wikilink">${escapeHtml(token[1]!)}</a>${syntax("]]")}`;
+          break;
+        case 3:
+          rendered += `${syntax("[")}<a>${editableInlineMarkdown(token[1]!)}</a>${syntax(`](${token[2]})`)}`;
+          break;
+        case 4: {
+          const marker = token[1]!;
+          rendered += `${syntax(marker)}<strong>${editableInlineMarkdown(token[2]!)}</strong>${syntax(marker)}`;
+          break;
+        }
+        case 5:
+          rendered += `${syntax("~~")}<del>${editableInlineMarkdown(token[1]!)}</del>${syntax("~~")}`;
+          break;
+        case 6:
+          rendered += `${syntax("==")}<mark>${editableInlineMarkdown(token[1]!)}</mark>${syntax("==")}`;
+          break;
+        default: {
+          const marker = token[1] ? "*" : "_";
+          rendered += `${syntax(marker)}<em>${editableInlineMarkdown(token[1] ?? token[2]!)}</em>${syntax(marker)}`;
+        }
+      }
+      cursor += tokenStart + full.length;
+    }
+
+    return rendered;
   }
 
   function escapeHtml(value: string): string {

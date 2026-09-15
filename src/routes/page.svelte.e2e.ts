@@ -323,6 +323,13 @@ test("formats Markdown while editing in the page pane", async ({ page }) => {
   await expect(line.locator("em")).toHaveText("italic");
   await expect(line.locator("em")).toHaveCSS("font-synthesis", "style");
 
+  await line.fill("A ~~struck~~ ==marked== [link](https://example.com).");
+  await expect(line.locator("del")).toHaveText("struck");
+  await expect(line.locator("mark")).toHaveText("marked");
+  await expect(line.locator("a")).toHaveCount(1);
+  await expect(line.locator("a")).toHaveText("link");
+  await expect(line).toContainText("[link](https://example.com)");
+
   await line.fill("#");
   await expect(line).not.toHaveClass(/heading-1/);
   await line.press(" ");
