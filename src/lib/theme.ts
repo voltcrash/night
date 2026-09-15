@@ -7,6 +7,7 @@ export type ColorTheme =
   | "monochrome"
   | "forest"
   | "ocean"
+  | "arctic"
   | "lavender"
   | "rose"
   | "solarized";
@@ -16,6 +17,7 @@ export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; h
   { id: "monochrome", label: "Monochrome", hint: "Pure black and white, with no accent hue." },
   { id: "forest", label: "Forest", hint: "Sage surfaces with a calm evergreen accent." },
   { id: "ocean", label: "Ocean", hint: "Cool blue-gray surfaces with a clear teal accent." },
+  { id: "arctic", label: "Arctic", hint: "Quiet steel-blue surfaces with an icy blue accent." },
   {
     id: "lavender",
     label: "Lavender",
@@ -38,6 +40,7 @@ const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   monochrome: { light: "#ffffff", dark: "#000000" },
   forest: { light: "#f7faf7", dark: "#182219" },
   ocean: { light: "#f8fcfd", dark: "#14242c" },
+  arctic: { light: "#f8fbfd", dark: "#17252e" },
   lavender: { light: "#fbfaff", dark: "#211a2a" },
   rose: { light: "#fffafb", dark: "#25191d" },
   solarized: { light: "#fdf6e3", dark: "#073642" },

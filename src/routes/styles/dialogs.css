@@ -729,6 +729,19 @@ kbd {
 .ocean-preview i:last-child {
   background: #2f7896;
 }
+.arctic-preview {
+  border-color: #ccdbe2;
+  background: #f8fbfd;
+}
+.arctic-preview i:first-child {
+  background: #f0f5f8;
+}
+.arctic-preview i:nth-child(2) {
+  background: #24343b;
+}
+.arctic-preview i:last-child {
+  background: #4d8ca8;
+}
 .lavender-preview {
   border-color: #d8d1e3;
   background: #fbfaff;

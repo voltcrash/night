@@ -100,13 +100,14 @@ test("offers additional color themes and persists the selection", async ({ page 
   await page.getByRole("button", { name: "Themes", exact: true }).click();
 
   const colorThemes = page.getByRole("radiogroup", { name: "Color theme" });
-  await expect(colorThemes.getByRole("radio")).toHaveCount(7);
+  await expect(colorThemes.getByRole("radio")).toHaveCount(8);
 
   for (const theme of [
     { id: "ember", label: "Ember" },
     { id: "monochrome", label: "Monochrome" },
     { id: "forest", label: "Forest" },
     { id: "ocean", label: "Ocean" },
+    { id: "arctic", label: "Arctic" },
     { id: "lavender", label: "Lavender" },
     { id: "rose", label: "Rose" },
     { id: "solarized", label: "Solarized" },
