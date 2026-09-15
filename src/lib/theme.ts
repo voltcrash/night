@@ -9,6 +9,7 @@ export type ColorTheme =
   | "ocean"
   | "arctic"
   | "phosphor"
+  | "espresso"
   | "lavender"
   | "rose"
   | "solarized";
@@ -23,6 +24,11 @@ export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; h
     id: "phosphor",
     label: "Phosphor",
     hint: "Graphite surfaces with a vivid terminal-green accent.",
+  },
+  {
+    id: "espresso",
+    label: "Espresso",
+    hint: "Velvety roasted cocoa surfaces with a glowing caramel accent.",
   },
   {
     id: "lavender",
@@ -48,6 +54,7 @@ const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   ocean: { light: "#f8fcfd", dark: "#14242c" },
   arctic: { light: "#f8fbfd", dark: "#17252e" },
   phosphor: { light: "#f7faf7", dark: "#1a1f1a" },
+  espresso: { light: "#f7f3ee", dark: "#261e1b" },
   lavender: { light: "#fbfaff", dark: "#211a2a" },
   rose: { light: "#fffafb", dark: "#25191d" },
   solarized: { light: "#fdf6e3", dark: "#073642" },
