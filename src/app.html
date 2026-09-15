@@ -16,7 +16,16 @@
         document.documentElement.dataset.theme = dark ? "dark" : "light";
         document.documentElement.dataset.themePreference = preference;
         const color = localStorage.getItem("onyx-color-theme");
-        document.documentElement.dataset.colorTheme = color === "monochrome" ? color : "ember";
+        const colorThemes = [
+          "ember",
+          "monochrome",
+          "forest",
+          "ocean",
+          "lavender",
+          "rose",
+          "solarized",
+        ];
+        document.documentElement.dataset.colorTheme = colorThemes.includes(color) ? color : "ember";
       } catch {
         document.documentElement.dataset.theme = systemDark() ? "dark" : "light";
         document.documentElement.dataset.themePreference = "system";

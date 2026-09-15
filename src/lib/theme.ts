@@ -2,7 +2,32 @@ import { readLocalStorage, writeLocalStorage } from "./browser-storage.js";
 
 export type ThemePreference = "system" | "light" | "dark";
 export type ResolvedTheme = "light" | "dark";
-export type ColorTheme = "ember" | "monochrome";
+export type ColorTheme =
+  | "ember"
+  | "monochrome"
+  | "forest"
+  | "ocean"
+  | "lavender"
+  | "rose"
+  | "solarized";
+
+export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; hint: string }> = [
+  { id: "ember", label: "Ember", hint: "Warm paper with a terracotta accent." },
+  { id: "monochrome", label: "Monochrome", hint: "Pure black and white, with no accent hue." },
+  { id: "forest", label: "Forest", hint: "Sage surfaces with a calm evergreen accent." },
+  { id: "ocean", label: "Ocean", hint: "Cool blue-gray surfaces with a clear teal accent." },
+  {
+    id: "lavender",
+    label: "Lavender",
+    hint: "Soft lilac surfaces with a thoughtful violet accent.",
+  },
+  { id: "rose", label: "Rose", hint: "Blush paper with a warm berry accent." },
+  {
+    id: "solarized",
+    label: "Solarized",
+    hint: "Low-contrast blue-gold tones built for long sessions.",
+  },
+];
 
 const STORAGE_KEY = "onyx-theme";
 const COLOR_THEME_STORAGE_KEY = "onyx-color-theme";
@@ -11,6 +36,11 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
 const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   ember: { light: "#fbfaf7", dark: "#1b1b19" },
   monochrome: { light: "#ffffff", dark: "#000000" },
+  forest: { light: "#f7faf7", dark: "#182219" },
+  ocean: { light: "#f8fcfd", dark: "#14242c" },
+  lavender: { light: "#fbfaff", dark: "#211a2a" },
+  rose: { light: "#fffafb", dark: "#25191d" },
+  solarized: { light: "#fdf6e3", dark: "#073642" },
 };
 
 function paintThemeColor(colorTheme: ColorTheme, resolved: ResolvedTheme): void {
@@ -27,7 +57,9 @@ export function readThemePreference(): ThemePreference {
 
 export function readColorTheme(): ColorTheme {
   const stored = readLocalStorage(COLOR_THEME_STORAGE_KEY);
-  return stored === "ember" || stored === "monochrome" ? stored : "ember";
+  return colorThemeOptions.some((option) => option.id === stored)
+    ? (stored as ColorTheme)
+    : "ember";
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {

@@ -92,6 +92,36 @@ test("traps modal focus and returns it to the opener", async ({ page }) => {
   await expect(palette).toBeFocused();
 });
 
+test("offers additional color themes and persists the selection", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Themes", exact: true }).click();
+
+  const colorThemes = page.getByRole("radiogroup", { name: "Color theme" });
+  await expect(colorThemes.getByRole("radio")).toHaveCount(7);
+
+  for (const theme of [
+    { id: "ember", label: "Ember" },
+    { id: "monochrome", label: "Monochrome" },
+    { id: "forest", label: "Forest" },
+    { id: "ocean", label: "Ocean" },
+    { id: "lavender", label: "Lavender" },
+    { id: "rose", label: "Rose" },
+    { id: "solarized", label: "Solarized" },
+  ]) {
+    const option = colorThemes.getByRole("radio").filter({ hasText: theme.label });
+    await expect(option).toHaveCount(1);
+    await option.click();
+    await expect(page.locator("html")).toHaveAttribute("data-color-theme", theme.id);
+    await expect(option).toHaveAttribute("aria-checked", "true");
+  }
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-color-theme", "solarized");
+});
+
 test("persists edits made while an earlier save is still in flight", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "Markdown editor" });
