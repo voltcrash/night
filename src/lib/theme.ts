@@ -5,7 +5,6 @@ export type ResolvedTheme = "light" | "dark";
 export type ColorTheme =
   | "ember"
   | "monochrome"
-  | "forest"
   | "ocean"
   | "arctic"
   | "phosphor"
@@ -18,7 +17,6 @@ export type ColorTheme =
 export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; hint: string }> = [
   { id: "ember", label: "Ember", hint: "Warm paper with a terracotta accent." },
   { id: "monochrome", label: "Monochrome", hint: "Pure black and white, with no accent hue." },
-  { id: "forest", label: "Forest", hint: "Sage surfaces with a calm evergreen accent." },
   { id: "ocean", label: "Ocean", hint: "Cool blue-gray surfaces with a clear teal accent." },
   { id: "arctic", label: "Arctic", hint: "Quiet steel-blue surfaces with an icy blue accent." },
   {
@@ -56,7 +54,6 @@ const DARK_QUERY = "(prefers-color-scheme: dark)";
 const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   ember: { light: "#fbfaf7", dark: "#1b1b19" },
   monochrome: { light: "#ffffff", dark: "#000000" },
-  forest: { light: "#f7faf7", dark: "#182219" },
   ocean: { light: "#f8fcfd", dark: "#14242c" },
   arctic: { light: "#f8fbfd", dark: "#17252e" },
   phosphor: { light: "#f7faf7", dark: "#1a1f1a" },

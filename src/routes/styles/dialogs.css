@@ -756,19 +756,6 @@ kbd {
 .monochrome-preview i:last-child {
   background: #000000;
 }
-.forest-preview {
-  border-color: #d0dbd1;
-  background: #f7faf7;
-}
-.forest-preview i:first-child {
-  background: #f0f5f1;
-}
-.forest-preview i:nth-child(2) {
-  background: #24372a;
-}
-.forest-preview i:last-child {
-  background: #3f7d58;
-}
 .ocean-preview {
   border-color: #ccdbe1;
   background: #f8fcfd;
