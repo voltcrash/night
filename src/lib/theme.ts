@@ -8,6 +8,7 @@ export type ColorTheme =
   | "forest"
   | "ocean"
   | "arctic"
+  | "phosphor"
   | "lavender"
   | "rose"
   | "solarized";
@@ -18,6 +19,11 @@ export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; h
   { id: "forest", label: "Forest", hint: "Sage surfaces with a calm evergreen accent." },
   { id: "ocean", label: "Ocean", hint: "Cool blue-gray surfaces with a clear teal accent." },
   { id: "arctic", label: "Arctic", hint: "Quiet steel-blue surfaces with an icy blue accent." },
+  {
+    id: "phosphor",
+    label: "Phosphor",
+    hint: "Graphite surfaces with a vivid terminal-green accent.",
+  },
   {
     id: "lavender",
     label: "Lavender",
@@ -41,6 +47,7 @@ const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   forest: { light: "#f7faf7", dark: "#182219" },
   ocean: { light: "#f8fcfd", dark: "#14242c" },
   arctic: { light: "#f8fbfd", dark: "#17252e" },
+  phosphor: { light: "#f7faf7", dark: "#1a1f1a" },
   lavender: { light: "#fbfaff", dark: "#211a2a" },
   rose: { light: "#fffafb", dark: "#25191d" },
   solarized: { light: "#fdf6e3", dark: "#073642" },

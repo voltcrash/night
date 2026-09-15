@@ -742,6 +742,19 @@ kbd {
 .arctic-preview i:last-child {
   background: #4d8ca8;
 }
+.phosphor-preview {
+  border-color: #344034;
+  background: #1a1f1a;
+}
+.phosphor-preview i:first-child {
+  background: #111411;
+}
+.phosphor-preview i:nth-child(2) {
+  background: #111411;
+}
+.phosphor-preview i:last-child {
+  background: #72e06a;
+}
 .lavender-preview {
   border-color: #d8d1e3;
   background: #fbfaff;
