@@ -42,6 +42,7 @@
 		onSearch: (value: string) => void;
 		onOpenPalette: () => void;
 		onOpenSettings: () => void;
+		onOpenStorageSettings: () => void;
 		onDisconnectGithub: () => void;
 		onMoveNoteFocus: (event: KeyboardEvent) => void;
 		onSelectNote: (id: string) => void;
@@ -56,7 +57,7 @@
 		vaults, activeVaultId, activeNoteId, results, visibleResults, searchQuery, notePage, notePageCount, saveState, notesLoaded, paletteOpen, settingsOpen,
 		isOnline, githubState, githubUser, githubMessage, transferState, storageError, shortcuts, primaryModifier, renderedPaneVisible, renderedReadOnly, wordCount, readingMinutes, contentWidth,
 		searchInput = $bindable(), noteList = $bindable(), onToggleSidebar, onSelectVault, onCreateVault, onRenameVault, onCreateNote, onSearch,
-		onOpenPalette, onOpenSettings, onDisconnectGithub, onMoveNoteFocus, onSelectNote, onChangePage,
+		onOpenPalette, onOpenSettings, onOpenStorageSettings, onDisconnectGithub, onMoveNoteFocus, onSelectNote, onChangePage,
 		onInsertSyntax, onPrefixLine, onToggleRenderedReadOnly, onContentWidthChange
 	}: Props = $props();
 
@@ -145,7 +146,7 @@
 		{#if githubState === 'connected' && githubUser}
 			<div class="github-account" class:offline={!isOnline} title={isOnline ? `GitHub sync enabled as ${githubUser.login}` : `Signed in as ${githubUser.login}; sync is paused offline`}><span class="github-avatar" aria-hidden="true">{githubUser.login.slice(0, 1)}</span><span class="github-login">@{githubUser.login}</span><button aria-label="Turn off GitHub sync" title={isOnline ? 'Turn off GitHub sync' : 'GitHub sync is unavailable offline'} disabled={!isOnline} onclick={onDisconnectGithub}><LogOut size={14} /></button></div>
 		{:else}
-			<button class="github-connect" class:error={githubState === 'error'} title={githubMessage || 'Notes are saved on this device'} aria-label="Open local storage settings" onclick={onOpenSettings}><HardDrive size={16} /><span>Saved locally</span></button>
+			<button class="github-connect" class:error={githubState === 'error'} title={githubMessage || 'Notes are saved on this device'} aria-label="Open local storage settings" onclick={onOpenStorageSettings}><HardDrive size={16} /><span>Saved locally</span></button>
 		{/if}
 		<button class="icon-button" aria-label="Settings" aria-haspopup="dialog" aria-expanded={settingsOpen} aria-controls="settings-dialog" title="Settings" onclick={onOpenSettings}><Settings size={18} /></button>
 	</div>

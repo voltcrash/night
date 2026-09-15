@@ -51,7 +51,8 @@
 		onCreateNote={() => void page.createNote()}
 		onSearch={page.queueSearch}
 		onOpenPalette={() => void page.openPalette()}
-		onOpenSettings={() => page.openSettings('storage')}
+		onOpenSettings={() => page.openSettings('editor')}
+		onOpenStorageSettings={() => page.openSettings('storage')}
 		onDisconnectGithub={() => void page.disconnectGitHub()}
 		onMoveNoteFocus={page.moveNoteFocus}
 		onSelectNote={(id) => void page.selectNote(id)}

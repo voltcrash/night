@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import {
-		CloudDownload, CloudOff, CloudUpload, Database, Download, ExternalLink, FileArchive, FolderInput,
-		FolderOutput, HardDrive, LoaderCircle, LogOut, Monitor, Moon, RefreshCw, ShieldCheck, Sun, Trash2,
-		TriangleAlert, WifiOff, X
+		CloudDownload, CloudOff, CloudUpload, Code2, Copy, Database, Download, ExternalLink, FileArchive,
+		FolderInput, FolderOutput, HardDrive, LoaderCircle, LogOut, Monitor, Moon, RefreshCw, ShieldCheck,
+		Sun, Trash2, TriangleAlert, WifiOff, X
 	} from '@lucide/svelte';
 	import {
 		listGithubRepositories, type GithubBackupState, type GithubRepository, type GithubUser,
@@ -63,7 +63,7 @@
 	let {
 		vault, vaultName, suggestedRepositoryName, isOnline, githubUser, githubState, githubMessage, githubBackup, pendingBackupCount,
 		backupState, backupMessage, backupCommitUrl, transferState, theme, resolvedTheme, colorTheme, fonts, shortcuts, primaryModifier,
-		section = $bindable('storage'), onThemeChange, onColorThemeChange, onFontChange, onResetFonts, onShortcutChange, onResetShortcuts, onClose, onConnectGithub, onDisconnectGithub, onCreateRepository, onSelectRepository, onForgetRepository,
+		section = $bindable('editor'), onThemeChange, onColorThemeChange, onFontChange, onResetFonts, onShortcutChange, onResetShortcuts, onClose, onConnectGithub, onDisconnectGithub, onCreateRepository, onSelectRepository, onForgetRepository,
 		onBackup, onRestore, onImportFolder, onImportZip, onExportFolder, onExportZip, onPrepareVaultDeletion, onDeleteVault
 	}: Props = $props();
 
@@ -302,15 +302,21 @@
 				{#if section === 'editor'}
 					<div class="settings-section-heading">
 						<div><h3>Editor</h3><p class="settings-hint">Set the typefaces your notes are written in</p></div>
-						<button class="settings-secondary" disabled={fontsAreDefault} onclick={onResetFonts}>Restore default fonts</button>
+						{#if !fontsAreDefault}<button class="settings-secondary" onclick={onResetFonts}>Restore default fonts</button>{/if}
 					</div>
 
-					<div class="type-specimen" aria-label="Typography preview">
-						<div class="type-specimen-label">Preview</div>
-						<h4>Errors should travel</h4>
-						<p>The question mark passes a recoverable error to the caller, keeping failure explicit and the happy path clear.</p>
-						<p><code>let mut username_file = File::open("hello.txt")?;</code></p>
-					</div>
+		<div class="type-specimen" aria-label="Typography preview">
+			<div class="type-specimen-label">Preview</div>
+			<h4>The <code class="type-specimen-token">?</code> Operator Shortcut</h4>
+			<blockquote>“This pattern of propagating errors is so common in Rust that Rust provides the question mark operator <code class="type-specimen-token">?</code> to make this easier.”</blockquote>
+			<div class="type-specimen-code" aria-label="Rust code example">
+				<div class="type-specimen-code-header">
+					<span><Code2 size={18} aria-hidden="true" /> Rust</span>
+					<Copy size={24} aria-hidden="true" />
+				</div>
+				<pre><code><span class="type-specimen-code-keyword">let mut</span> <span class="type-specimen-code-variable">username_file</span> = <span class="type-specimen-code-type">File</span>::<span class="type-specimen-code-function">open</span>(<span class="type-specimen-code-string">"hello.txt"</span>)?;</code></pre>
+			</div>
+		</div>
 
 					{#each fontRoles as role (role.id)}
 						<div class="font-role">

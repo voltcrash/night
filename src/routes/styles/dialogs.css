@@ -565,15 +565,15 @@ kbd {
 }
 .type-specimen-label {
   display: inline-flex;
-  margin-bottom: 9px;
-  color: var(--accent);
+  margin-bottom: 16px;
+  color: var(--ink-soft);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .type-specimen h4 {
-  margin: 0 0 9px;
+  margin: 0 0 18px;
   color: var(--ink-strong);
   font-family: var(--font-heading);
   font-size: 23px;
@@ -581,23 +581,76 @@ kbd {
   letter-spacing: -0.03em;
   line-height: 1.2;
 }
-.type-specimen p {
-  margin: 0;
+.type-specimen-token {
+  display: inline-block;
+  padding: 0.08em 0.27em;
+  border-radius: 5px;
+  background: var(--subtle-strong);
+  color: var(--ink-strong);
+  font: 0.88em var(--font-code);
+}
+.type-specimen blockquote {
+  margin: 0 0 20px;
+  padding: 2px 0 2px 17px;
+  border-left: 3px solid var(--line-hover);
   color: var(--ink-body);
   font-family: var(--font-content);
   font-size: 13.5px;
   line-height: 1.68;
 }
-.type-specimen p + p {
-  margin-top: 11px;
+.type-specimen blockquote .type-specimen-token {
+  padding: 0.04em 0.24em;
+  font-size: 0.92em;
 }
-.type-specimen code {
-  padding: 3px 6px;
-  border-radius: 5px;
+.type-specimen-code {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
   background: var(--code-bg);
   color: var(--code-text);
-  font-family: var(--font-code);
-  font-size: 12px;
+}
+.type-specimen-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  color: var(--code-text);
+  font-family: var(--font-content);
+  font-size: 13px;
+}
+.type-specimen-code-header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.type-specimen-code-header > svg {
+  color: var(--inverse-muted);
+}
+.type-specimen-code pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 9px 14px 15px;
+  font: 13px / 1.6 var(--font-code);
+  white-space: pre;
+}
+.type-specimen-code-keyword {
+  color: #e79ab6;
+}
+.type-specimen-code-variable {
+  color: #b9a5ee;
+}
+.type-specimen-code-type {
+  color: var(--code-text);
+}
+.type-specimen-code-function {
+  color: #b9a5ee;
+}
+.type-specimen-code-string {
+  color: #8fcf9e;
+}
+.type-specimen code:not(.type-specimen-token) {
+  margin: 0;
+  padding: 0;
 }
 .font-role {
   display: grid;

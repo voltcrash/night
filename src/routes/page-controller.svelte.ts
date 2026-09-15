@@ -215,7 +215,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   let backupMessage = $state("");
   let backupCommitUrl = $state("");
   let settingsOpen = $state(false);
-  let settingsSection = $state<SettingsSection>("storage");
+  let settingsSection = $state<SettingsSection>("editor");
   let pendingBackupCount = $state(0);
   let restoreModalOpen = $state(false);
   let restoreState = $state<RestoreState>("idle");
@@ -596,7 +596,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       label: "Open settings",
       icon: Settings,
       keywords: "preferences options github storage themes",
-      run: () => openSettings("storage"),
+      run: () => openSettings("editor"),
     },
     {
       id: "storage",
@@ -762,7 +762,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     await runBackup(githubBackup);
   }
 
-  function openSettings(target: SettingsSection = "storage"): void {
+  function openSettings(target: SettingsSection = "editor"): void {
     settingsSection = target;
     settingsOpen = true;
   }
