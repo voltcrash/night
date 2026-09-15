@@ -8,7 +8,8 @@ adds private backup and cross-device restore.
 
 - Create and autosave Markdown notes locally.
 - Search note titles and contents from an on-device index.
-- Write in source, rendered inline, split, or read-only preview mode.
+- Write in the Markdown source and see the rendered page update alongside it; the page can also be
+  made read-only.
 - Syntax-highlight fenced code blocks and show a short language label when the opening fence names
   a language; the same markup is preserved in rich-text, PDF, and HTML output.
 - Point just beside the divider to reveal a pane's grip, drag it to any side of the workspace to place the panes side by side or stacked, and drag the divider to resize them.

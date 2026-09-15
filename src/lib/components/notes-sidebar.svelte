@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Bold, Braces, Code2, Eye, EyeOff, FileText, HardDrive, Heading2, Highlighter, Italic, Link, List, ListChecks, ListOrdered, LoaderCircle, Lock, LockOpen, LogOut, MessageSquareWarning, Minus, PanelLeftClose, Plus, Quote, Search, Settings, Sigma, Strikethrough, Wrench, X } from '@lucide/svelte';
+	import { Bold, Braces, Code2, FileText, HardDrive, Heading2, Highlighter, Italic, Link, List, ListChecks, ListOrdered, LoaderCircle, Lock, LockOpen, LogOut, MessageSquareWarning, Minus, PanelLeftClose, Plus, Quote, Search, Settings, Sigma, Strikethrough, Wrench, X } from '@lucide/svelte';
 	import { formatShortcut, type GithubUser, type KeyboardShortcuts, type PrimaryModifier, type VaultDescriptor, type VaultSearchResult } from '$lib';
 	import GithubIcon from './github-icon.svelte';
 	import VaultSwitcher from './vault-switcher.svelte';
 	import type { GithubState, SaveState, TransferState } from './app-types';
-	import type { InlinePreviewBehavior } from './settings-types';
 
 	interface Props {
 		vaults: VaultDescriptor[];
@@ -30,7 +29,6 @@
 		storageError: string;
 		renderedPaneVisible: boolean;
 		renderedReadOnly: boolean;
-		inlinePreviewBehavior: InlinePreviewBehavior;
 		wordCount: number;
 		readingMinutes: number;
 		contentWidth: number;
@@ -51,16 +49,15 @@
 		onInsertSyntax: (before: string, after?: string, placeholder?: string) => void;
 		onPrefixLine: (prefix: string) => void;
 		onToggleRenderedReadOnly: () => void;
-		onToggleInlinePreview: () => void;
 		onContentWidthChange: (value: number) => void;
 	}
 
 	let {
 		vaults, activeVaultId, activeNoteId, results, visibleResults, searchQuery, notePage, notePageCount, saveState, notesLoaded, paletteOpen, settingsOpen,
-		isOnline, githubState, githubUser, githubMessage, transferState, storageError, shortcuts, primaryModifier, renderedPaneVisible, renderedReadOnly, inlinePreviewBehavior, wordCount, readingMinutes, contentWidth,
+		isOnline, githubState, githubUser, githubMessage, transferState, storageError, shortcuts, primaryModifier, renderedPaneVisible, renderedReadOnly, wordCount, readingMinutes, contentWidth,
 		searchInput = $bindable(), noteList = $bindable(), onToggleSidebar, onSelectVault, onCreateVault, onRenameVault, onCreateNote, onSearch,
 		onOpenPalette, onOpenSettings, onDisconnectGithub, onMoveNoteFocus, onSelectNote, onChangePage,
-		onInsertSyntax, onPrefixLine, onToggleRenderedReadOnly, onToggleInlinePreview, onContentWidthChange
+		onInsertSyntax, onPrefixLine, onToggleRenderedReadOnly, onContentWidthChange
 	}: Props = $props();
 
 	let sidebarView = $state<'files' | 'tools'>('files');
@@ -110,7 +107,6 @@
 				<h2>View</h2>
 				<div class="sidebar-view-options">
 					<button class:active={renderedReadOnly} aria-pressed={renderedReadOnly} disabled={!renderedPaneVisible} onclick={onToggleRenderedReadOnly} aria-label={renderedReadOnly ? 'Enable page editing' : 'Turn on read-only'}>{#if renderedReadOnly}<Lock size={16} />{:else}<LockOpen size={16} />{/if}<span>{renderedReadOnly ? 'Read only' : 'Editing'}</span></button>
-					<button class:active={inlinePreviewBehavior === 'source-line'} aria-pressed={inlinePreviewBehavior === 'source-line'} disabled={!renderedPaneVisible} onclick={onToggleInlinePreview} title="Reveal raw Markdown on the active line">{#if inlinePreviewBehavior === 'source-line'}<Eye size={16} />{:else}<EyeOff size={16} />{/if}<span>Inline preview</span></button>
 					<label class="content-width-control">
 						<span><strong>Content width</strong><output>{contentWidth}px</output></span>
 						<input type="range" min="480" max="1200" step="20" value={contentWidth} aria-label="Content width" oninput={(event) => onContentWidthChange(Number(event.currentTarget.value))} />

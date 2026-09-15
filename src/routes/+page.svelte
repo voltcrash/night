@@ -39,7 +39,6 @@
 		primaryModifier={page.primaryModifier}
 		renderedPaneVisible={page.renderedPaneVisible}
 		renderedReadOnly={page.renderedReadOnly}
-		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		wordCount={page.wordCount}
 		readingMinutes={page.readingMinutes}
 		contentWidth={page.contentWidth}
@@ -60,7 +59,6 @@
 		onInsertSyntax={(before, after, placeholder) => void page.insertSyntax(before, after, placeholder)}
 		onPrefixLine={(prefix) => void page.prefixLine(prefix)}
 		onToggleRenderedReadOnly={page.toggleRenderedReadOnly}
-		onToggleInlinePreview={page.toggleInlinePreview}
 		onContentWidthChange={page.setContentWidth}
 	/>
 
@@ -78,7 +76,6 @@
 		htmlSourceBlocks={page.htmlSourceBlocks}
 		renderedBlockLines={page.renderedBlockLines}
 		renderedReadOnly={page.renderedReadOnly}
-		inlinePreviewBehavior={page.inlinePreviewBehavior}
 		markdown={page.markdown}
 		markdownLines={page.markdownLines}
 		liveLine={page.liveLine}
@@ -89,7 +86,6 @@
 		shortcuts={page.shortcuts}
 		primaryModifier={page.primaryModifier}
 		bind:editor={page.editor}
-		bind:liveEditor={page.liveEditor}
 		bind:liveEditorContainer={page.liveEditorContainer}
 		onRetryStorage={() => void (page.vault ? page.saveDraft() : page.openVault())}
 		onDismissStorageNotice={page.dismissStorageNotice}
@@ -110,11 +106,7 @@
 		onLiveLineFocus={page.focusLiveLine}
 		onRenderedLineInput={page.updateRenderedLine}
 		onRenderedLineKeydown={page.handleRenderedLineKeydown}
-		onLiveLineChange={page.updateLiveLine}
-		onLiveLineKeydown={page.handleLiveLineKeydown}
-		onActivateLiveLine={page.activateLiveLine}
 		renderEditableLine={page.renderEditableLine}
-		renderLiveLine={page.renderLiveLine}
 		liveLineKind={page.liveLineKind}
 		liveCodeLanguage={page.liveCodeLanguage}
 	/>

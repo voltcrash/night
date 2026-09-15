@@ -4,7 +4,6 @@
 	import { formatShortcut, HTML_SOURCE_SEPARATOR, PLAIN_TEXT_SEPARATOR, type KeyboardShortcuts, type PrimaryModifier, type TextBlock } from '$lib';
 	import type { SourceLines } from '$lib/markdown';
 	import { elementAnchors, scrollAnchors, syncedScrollTop, textAnchors, textareaAnchors, type ScrollAnchor } from '$lib/scroll-sync';
-	import type { InlinePreviewBehavior } from './settings-dialog.svelte';
 	import type { PaneEdge, PaneLayout, PaneOrder, SaveState, TransferState } from './app-types';
 	import { outputViews, type OutputView } from './output-views';
 
@@ -22,7 +21,6 @@
 		htmlSourceBlocks: TextBlock[];
 		renderedBlockLines: (SourceLines | undefined)[];
 		renderedReadOnly: boolean;
-		inlinePreviewBehavior: InlinePreviewBehavior;
 		markdown: string;
 		markdownLines: string[];
 		liveLine: number;
@@ -33,7 +31,6 @@
 		shortcuts: KeyboardShortcuts;
 		primaryModifier: PrimaryModifier;
 		editor?: HTMLTextAreaElement;
-		liveEditor?: HTMLTextAreaElement;
 		liveEditorContainer?: HTMLDivElement;
 		onRetryStorage: () => void;
 		onDismissStorageNotice: () => void;
@@ -54,22 +51,17 @@
 		onLiveLineFocus: (line: number) => void;
 		onRenderedLineInput: (line: number, element: HTMLElement) => void;
 		onRenderedLineKeydown: (event: KeyboardEvent, line: number) => void;
-		onLiveLineChange: (line: number, value: string) => void;
-		onLiveLineKeydown: (event: KeyboardEvent, line: number) => void;
-		onActivateLiveLine: (line: number) => void;
 		renderEditableLine: (line: string, index: number) => string;
-		renderLiveLine: (line: string, index: number) => string;
 		liveLineKind: (line: string, index: number) => string;
 		liveCodeLanguage: (index: number) => string;
 	}
 
 	let {
-		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, plainTextBlocks, htmlSource, htmlSourceBlocks, renderedBlockLines, renderedReadOnly, inlinePreviewBehavior, markdown, markdownLines, liveLine,
+		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, plainTextBlocks, htmlSource, htmlSourceBlocks, renderedBlockLines, renderedReadOnly, markdown, markdownLines, liveLine,
 		saveState, transferState, hasContent, renderedMarkdown, shortcuts, primaryModifier,
-		editor = $bindable(), liveEditor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
+		editor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
 		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopy, onDownload, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
-		onRenderedLineKeydown, onLiveLineChange, onLiveLineKeydown, onActivateLiveLine,
-		renderEditableLine, renderLiveLine, liveLineKind, liveCodeLanguage
+		onRenderedLineKeydown, renderEditableLine, liveLineKind, liveCodeLanguage
 	}: Props = $props();
 
 	let shell = $state<HTMLElement>();
@@ -308,7 +300,6 @@
 
 	$effect(() => {
 		void renderedReadOnly;
-		void inlinePreviewBehavior;
 		tick().then(() => queueScrollSync('output'));
 	});
 
@@ -413,13 +404,7 @@
 			{:else}
 				<div class="live-editor prose" bind:this={liveEditorContainer} aria-label="Page editor">
 					{#each markdownLines as line, index}
-						{#if inlinePreviewBehavior === 'rendered'}
-							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
-						{:else if index === liveLine}
-							<textarea class="live-source-line" bind:this={liveEditor} value={line} oninput={(event) => onLiveLineChange(index, event.currentTarget.value)} onkeydown={(event) => onLiveLineKeydown(event, index)} aria-label={`Markdown line ${index + 1}`} rows="1" spellcheck="true" disabled={saveState === 'loading' || transferState === 'working'}></textarea>
-						{:else}
-							<div class="live-rendered-line" class:blank={!line} role="button" tabindex="0" aria-label={`Edit line ${index + 1}`} onclick={() => onActivateLiveLine(index)} onkeydown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onActivateLiveLine(index); } }}>{@html renderLiveLine(line, index)}</div>
-						{/if}
+						<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
 					{/each}
 				</div>
 			{/if}

@@ -39,7 +39,7 @@ import type {
   TransferState,
 } from "$lib/components/app-types";
 import { isOutputView, type OutputView } from "$lib/components/output-views";
-import type { InlinePreviewBehavior, SettingsSection } from "$lib/components/settings-types";
+import type { SettingsSection } from "$lib/components/settings-types";
 import {
   codeLanguageLabel,
   highlightCodeLines,
@@ -186,10 +186,8 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   let previewTimer: number | undefined = $state();
   let searchSequence = 0;
   let editor: HTMLTextAreaElement | undefined = $state();
-  let liveEditor: HTMLTextAreaElement | undefined = $state();
   let liveEditorContainer: HTMLDivElement | undefined = $state();
   let liveLine = $state(0);
-  let inlinePreviewBehavior = $state<InlinePreviewBehavior>("rendered");
   let searchInput: HTMLInputElement | undefined = $state();
   let sidebarOpen = $state(false);
   let storageError = $state("");
@@ -236,7 +234,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   const remoteChanges: VaultChangeEvent[] = [];
   let noteLoadSequence = 0;
   let clearingVault = false;
-  const liveRenderCache = new Map<string, string>();
 
   const activeVault = $derived(
     vaults.find((candidate) => candidate.id === activeVaultId) ?? vaults[0],
@@ -610,10 +607,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     isOnline = navigator.onLine;
     const storageSupport = detectBrowserStorageSupport();
     storageNotice = browserStorageWarnings(storageSupport).join(" ");
-    inlinePreviewBehavior =
-      readLocalStorage("onyx:inline-preview-behavior") === "source-line"
-        ? "source-line"
-        : "rendered";
     const narrowQuery = globalThis.matchMedia?.(NARROW_VIEWPORT);
     singlePaneMode = narrowQuery?.matches === true;
     applyPanePreferences();
@@ -816,7 +809,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     noteRevision = 0;
     activeNoteSourcePath = undefined;
     releaseLocalAttachmentUrls();
-    liveRenderCache.clear();
     markdown = "";
     lastSavedMarkdown = "";
     liveLine = 0;
@@ -1121,7 +1113,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     }
     releaseLocalAttachmentUrls();
     localAttachmentUrls = nextUrls;
-    liveRenderCache.clear();
     activeNoteSourcePath = note.sourcePath;
     activeNoteId = note.id;
     noteRevision = note.revision;
@@ -1626,9 +1617,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       renderedPaneVisible = true;
       editingSurface = "rendered";
       if (!singlePaneMode) writeLocalStorage("onyx:rendered-pane-visible", "true");
-      requestAnimationFrame(() =>
-        inlinePreviewBehavior === "rendered" ? focusRenderedLine(liveLine) : liveEditor?.focus(),
-      );
+      requestAnimationFrame(() => focusRenderedLine(liveLine));
     }
   }
 
@@ -1644,15 +1633,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   function activateLiveLine(line: number, position?: number): void {
     editingSurface = "rendered";
     liveLine = line;
-    if (inlinePreviewBehavior === "rendered") {
-      requestAnimationFrame(() => focusRenderedLine(line, position));
-      return;
-    }
-    requestAnimationFrame(() => {
-      liveEditor?.focus();
-      const cursor = position ?? liveEditor?.value.length ?? 0;
-      liveEditor?.setSelectionRange(cursor, cursor);
-    });
+    requestAnimationFrame(() => focusRenderedLine(line, position));
   }
 
   function setFont(role: FontRole, id: string): void {
@@ -1663,18 +1644,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   function resetFonts(): void {
     fonts = { ...defaultFontChoices };
     applyFontChoices(fonts);
-  }
-
-  function toggleInlinePreview(): void {
-    const behavior: InlinePreviewBehavior =
-      inlinePreviewBehavior === "rendered" ? "source-line" : "rendered";
-    inlinePreviewBehavior = behavior;
-    writeLocalStorage("onyx:inline-preview-behavior", behavior);
-    if (renderedPaneVisible && !renderedReadOnly && editingSurface === "rendered") {
-      requestAnimationFrame(() =>
-        behavior === "rendered" ? focusRenderedLine(liveLine) : liveEditor?.focus(),
-      );
-    }
   }
 
   function shortcutLabel(action: ShortcutAction): string | undefined {
@@ -1694,8 +1663,14 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   function updateRenderedLine(line: number, element: HTMLElement): void {
     const position = getCaretOffset(element);
-    updateLiveLine(line, element.textContent ?? "");
-    void tick().then(() => focusRenderedLine(liveLine, position));
+    const replacement = (element.textContent ?? "").split("\n");
+    const lines = [...markdownLines];
+    lines.splice(line, 1, ...replacement);
+    liveLine = line + replacement.length - 1;
+    updateMarkdown(lines.join("\n"));
+    void tick().then(() =>
+      focusRenderedLine(liveLine, replacement.length > 1 ? replacement.at(-1)?.length : position),
+    );
   }
 
   function handleRenderedLineKeydown(event: KeyboardEvent, line: number): void {
@@ -1798,51 +1773,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     selection?.addRange(range);
   }
 
-  function updateLiveLine(line: number, value: string): void {
-    const lines = [...markdownLines];
-    const replacement = value.split("\n");
-    lines.splice(line, 1, ...replacement);
-    liveLine = line + replacement.length - 1;
-    updateMarkdown(lines.join("\n"));
-    if (replacement.length > 1) activateLiveLine(liveLine, replacement.at(-1)?.length ?? 0);
-  }
-
-  function handleLiveLineKeydown(event: KeyboardEvent, line: number): void {
-    if (!liveEditor) return;
-    const start = liveEditor.selectionStart;
-    const end = liveEditor.selectionEnd;
-    const value = liveEditor.value;
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const before = value.slice(0, start);
-      const after = value.slice(end);
-      const marker = before.match(/^(\s*(?:[-*]\s+(?:\[[ xX]\]\s+)?|>\s+))/)?.[1] ?? "";
-      const continuation = marker && before.trim() !== marker.trim() ? marker : "";
-      const lines = [...markdownLines];
-      lines.splice(line, 1, before, `${continuation}${after}`);
-      updateMarkdown(lines.join("\n"));
-      activateLiveLine(line + 1, continuation.length);
-    } else if (event.key === "Backspace" && start === 0 && end === 0 && line > 0) {
-      event.preventDefault();
-      const lines = [...markdownLines];
-      const previousLength = lines[line - 1].length;
-      lines.splice(line - 1, 2, `${lines[line - 1]}${value}`);
-      updateMarkdown(lines.join("\n"));
-      activateLiveLine(line - 1, previousLength);
-    } else if (event.key === "ArrowUp" && start === 0 && end === 0 && line > 0) {
-      event.preventDefault();
-      activateLiveLine(line - 1);
-    } else if (
-      event.key === "ArrowDown" &&
-      start === value.length &&
-      end === value.length &&
-      line < markdownLines.length - 1
-    ) {
-      event.preventDefault();
-      activateLiveLine(line + 1, 0);
-    }
-  }
-
   function queueSearch(value: string): void {
     searchQuery = value;
     notePage = 0;
@@ -1884,7 +1814,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   async function insertSyntax(before: string, after = before, placeholder = "text"): Promise<void> {
     if (!(await ensureMarkdownView())) return;
-    if (isRenderedEditingActive() && inlinePreviewBehavior === "rendered") {
+    if (isRenderedEditingActive()) {
       const target = liveEditorContainer?.querySelector<HTMLElement>(
         `[data-live-line="${liveLine}"]`,
       );
@@ -1914,18 +1844,13 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       });
       return;
     }
-    const renderedActive = isRenderedEditingActive();
-    const target = renderedActive ? liveEditor : editor;
+    const target = editor;
     if (!target) return;
     const relativeStart = target.selectionStart;
-    const lineOffset = renderedActive
-      ? markdownLines.slice(0, liveLine).reduce((total, line) => total + line.length + 1, 0)
-      : 0;
-    const start = lineOffset + relativeStart;
-    const end = lineOffset + target.selectionEnd;
-    const selection = markdown.slice(start, end) || placeholder;
+    const selectionEnd = target.selectionEnd;
+    const selection = markdown.slice(relativeStart, selectionEnd) || placeholder;
     updateMarkdown(
-      `${markdown.slice(0, start)}${before}${selection}${after}${markdown.slice(end)}`,
+      `${markdown.slice(0, relativeStart)}${before}${selection}${after}${markdown.slice(selectionEnd)}`,
     );
     requestAnimationFrame(() => {
       target.focus();
@@ -1936,7 +1861,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   async function prefixLine(prefix: string): Promise<void> {
     if (!(await ensureMarkdownView())) return;
-    if (isRenderedEditingActive() && inlinePreviewBehavior === "rendered") {
+    if (isRenderedEditingActive()) {
       const target = liveEditorContainer?.querySelector<HTMLElement>(
         `[data-live-line="${liveLine}"]`,
       );
@@ -1949,15 +1874,10 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       requestAnimationFrame(() => focusRenderedLine(liveLine, selection.start + prefix.length));
       return;
     }
-    const renderedActive = isRenderedEditingActive();
-    const target = renderedActive ? liveEditor : editor;
+    const target = editor;
     if (!target) return;
     const relativeCursor = target.selectionStart;
-    const lineOffset = renderedActive
-      ? markdownLines.slice(0, liveLine).reduce((total, line) => total + line.length + 1, 0)
-      : 0;
-    const cursor = lineOffset + relativeCursor;
-    const start = markdown.lastIndexOf("\n", cursor - 1) + 1;
+    const start = markdown.lastIndexOf("\n", relativeCursor - 1) + 1;
     updateMarkdown(`${markdown.slice(0, start)}${prefix}${markdown.slice(start)}`);
     requestAnimationFrame(() => {
       target.focus();
@@ -2059,38 +1979,8 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     files[(next + files.length) % files.length]?.focus();
   }
 
-  function renderLiveLine(line: string, index: number): string {
-    const inCode = Boolean(liveCodeLines[index] && !isFenceLine(line));
-    if (inCode) {
-      const language = liveCodeLanguages[index] ?? "";
-      const highlighted = liveCodeHighlights.get(index) ?? escapeHtml(line);
-      const className = language ? ` class="hljs language-${escapeHtml(language)}"` : "";
-      const label = isCodeBlockEnd(index) ? liveCodeLanguage(index) : "";
-      const languageAttribute = label ? ` data-code-language="${escapeHtml(label)}"` : "";
-      return `<pre${languageAttribute}><code${className}>${highlighted || " "}</code></pre>`;
-    }
-
-    const cacheKey = `markdown\0${line}`;
-    const cached = liveRenderCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-    const rendered = renderMarkdown(line, resolveAttachmentUrl);
-    if (liveRenderCache.size >= 1_000) {
-      liveRenderCache.delete(liveRenderCache.keys().next().value ?? "");
-    }
-    liveRenderCache.set(cacheKey, rendered);
-    return rendered;
-  }
-
   function isFenceLine(line: string): boolean {
     return /^\s*(?:`{3,}|~{3,})/.test(line);
-  }
-
-  function isCodeBlockEnd(index: number): boolean {
-    return Boolean(
-      liveCodeLines[index] &&
-      !isFenceLine(markdownLines[index] ?? "") &&
-      (!liveCodeLines[index + 1] || isFenceLine(markdownLines[index + 1] ?? "")),
-    );
   }
 
   function liveCodeLanguage(index: number): string {
@@ -2453,9 +2343,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     get fonts() {
       return fonts;
     },
-    get inlinePreviewBehavior() {
-      return inlinePreviewBehavior;
-    },
     get shortcuts() {
       return shortcuts;
     },
@@ -2558,12 +2445,6 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     set editor(value: HTMLTextAreaElement | undefined) {
       editor = value;
     },
-    get liveEditor() {
-      return liveEditor;
-    },
-    set liveEditor(value: HTMLTextAreaElement | undefined) {
-      liveEditor = value;
-    },
     get liveEditorContainer() {
       return liveEditorContainer;
     },
@@ -2629,18 +2510,14 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     updateMarkdown,
     updateRenderedLine,
     handleRenderedLineKeydown,
-    updateLiveLine,
-    handleLiveLineKeydown,
     activateLiveLine,
     renderEditableLine,
-    renderLiveLine,
     liveLineKind,
     liveCodeLanguage,
     setTheme,
     setColorTheme,
     setFont,
     resetFonts,
-    toggleInlinePreview,
     setShortcut,
     resetShortcuts,
     createBackupRepository,
