@@ -60,6 +60,7 @@
 		renderEditableLine: (line: string, index: number) => string;
 		renderLiveLine: (line: string, index: number) => string;
 		liveLineKind: (line: string, index: number) => string;
+		liveCodeLanguage: (index: number) => string;
 	}
 
 	let {
@@ -68,7 +69,7 @@
 		editor = $bindable(), liveEditor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
 		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopy, onDownload, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
 		onRenderedLineKeydown, onLiveLineChange, onLiveLineKeydown, onActivateLiveLine,
-		renderEditableLine, renderLiveLine, liveLineKind
+		renderEditableLine, renderLiveLine, liveLineKind, liveCodeLanguage
 	}: Props = $props();
 
 	let shell = $state<HTMLElement>();
@@ -413,7 +414,7 @@
 				<div class="live-editor prose" bind:this={liveEditorContainer} aria-label="Page editor">
 					{#each markdownLines as line, index}
 						{#if inlinePreviewBehavior === 'rendered'}
-							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
+							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
 						{:else if index === liveLine}
 							<textarea class="live-source-line" bind:this={liveEditor} value={line} oninput={(event) => onLiveLineChange(index, event.currentTarget.value)} onkeydown={(event) => onLiveLineKeydown(event, index)} aria-label={`Markdown line ${index + 1}`} rows="1" spellcheck="true" disabled={saveState === 'loading' || transferState === 'working'}></textarea>
 						{:else}

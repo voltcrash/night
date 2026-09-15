@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  codeLanguageLabel,
   highlightCodeLines,
   renderMarkdown,
   renderMarkdownBlocks,
@@ -175,10 +176,17 @@ A footnote[^1] and math $a^2$.
     const highlighted = renderMarkdown("```js\nconst answer = 42;\n```");
     const plain = renderMarkdown("```\nconst answer = 42;\n```");
 
+    expect(highlighted).toContain('<pre data-code-language="JavaScript">');
     expect(highlighted).toContain('<code class="hljs language-js">');
     expect(highlighted).toContain('<span class="hljs-keyword">const</span>');
     expect(highlighted).toContain('<span class="hljs-number">42</span>');
     expect(plain).toBe("<pre><code>const answer = 42;\n</code></pre>");
+  });
+
+  it("uses friendly names for code language labels", () => {
+    expect(codeLanguageLabel("ts")).toBe("TypeScript");
+    expect(codeLanguageLabel("javascript")).toBe("JavaScript");
+    expect(codeLanguageLabel("custom-lang")).toBe("Custom Lang");
   });
 
   it("keeps highlighted tokens available one line at a time for live preview", () => {

@@ -906,6 +906,22 @@
   background: var(--code-bg);
   color: var(--code-text);
 }
+.prose pre[data-code-language],
+.live-editor.prose .live-editable-line.code-content[data-code-language] {
+  position: relative;
+}
+.prose pre[data-code-language]::before,
+.live-editor.prose .live-editable-line.code-content.code-start[data-code-language]::before {
+  content: attr(data-code-language);
+  position: absolute;
+  top: 8px;
+  left: 18px;
+  color: var(--code-syntax-comment);
+  font: 600 10px / 1.2 var(--font-code);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .prose pre code {
   padding: 0;
   background: transparent;

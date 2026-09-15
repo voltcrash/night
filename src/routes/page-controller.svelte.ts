@@ -41,6 +41,7 @@ import type {
 import { isOutputView, type OutputView } from "$lib/components/output-views";
 import type { InlinePreviewBehavior, SettingsSection } from "$lib/components/settings-types";
 import {
+  codeLanguageLabel,
   highlightCodeLines,
   renderMarkdown,
   renderMarkdownBlocks,
@@ -2064,7 +2065,9 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
       const language = liveCodeLanguages[index] ?? "";
       const highlighted = liveCodeHighlights.get(index) ?? escapeHtml(line);
       const className = language ? ` class="hljs language-${escapeHtml(language)}"` : "";
-      return `<pre><code${className}>${highlighted || " "}</code></pre>`;
+      const label = isCodeBlockStart(index) ? liveCodeLanguage(index) : "";
+      const languageAttribute = label ? ` data-code-language="${escapeHtml(label)}"` : "";
+      return `<pre${languageAttribute}><code${className}>${highlighted || " "}</code></pre>`;
     }
 
     const cacheKey = `markdown\0${line}`;
@@ -2080,6 +2083,18 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   function isFenceLine(line: string): boolean {
     return /^\s*(?:`{3,}|~{3,})/.test(line);
+  }
+
+  function isCodeBlockStart(index: number): boolean {
+    return Boolean(
+      liveCodeLines[index] &&
+      !isFenceLine(markdownLines[index] ?? "") &&
+      isFenceLine(markdownLines[index - 1] ?? ""),
+    );
+  }
+
+  function liveCodeLanguage(index: number): string {
+    return codeLanguageLabel(liveCodeLanguages[index] ?? "");
   }
 
   function isListLine(line: string): boolean {
@@ -2620,6 +2635,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     renderEditableLine,
     renderLiveLine,
     liveLineKind,
+    liveCodeLanguage,
     setTheme,
     setColorTheme,
     setFont,

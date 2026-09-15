@@ -36,6 +36,51 @@ export interface MarkdownRenderOptions {
   remoteImages?: RemoteImagePolicy;
 }
 
+const CODE_LANGUAGE_LABELS: Record<string, string> = {
+  bash: "Bash",
+  c: "C",
+  "c++": "C++",
+  csharp: "C#",
+  css: "CSS",
+  diff: "Diff",
+  docker: "Docker",
+  dockerfile: "Dockerfile",
+  go: "Go",
+  gql: "GraphQL",
+  graphql: "GraphQL",
+  html: "HTML",
+  java: "Java",
+  javascript: "JavaScript",
+  js: "JavaScript",
+  json: "JSON",
+  jsx: "JSX",
+  kotlin: "Kotlin",
+  markdown: "Markdown",
+  md: "Markdown",
+  php: "PHP",
+  plaintext: "Plain text",
+  "plain-text": "Plain text",
+  py: "Python",
+  python: "Python",
+  rb: "Ruby",
+  ruby: "Ruby",
+  rust: "Rust",
+  scss: "SCSS",
+  sh: "Shell",
+  shell: "Shell",
+  sql: "SQL",
+  svelte: "Svelte",
+  swift: "Swift",
+  ts: "TypeScript",
+  typescript: "TypeScript",
+  tsx: "TSX",
+  txt: "Plain text",
+  xml: "XML",
+  yaml: "YAML",
+  yml: "YAML",
+  zsh: "Zsh",
+};
+
 // Sanitizing strips generated ids of their prefix-free form, so anchors are re-pointed after.
 const ID_PREFIX = "user-content-";
 
@@ -108,6 +153,15 @@ export function renderMarkdown(
     .join("");
 }
 
+export function codeLanguageLabel(language: string): string {
+  const normalized = language.trim().split(/\s+/)[0] ?? "";
+  if (!normalized) return "";
+  return (
+    CODE_LANGUAGE_LABELS[normalized.toLowerCase()] ??
+    normalized.replace(/[-_]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())
+  );
+}
+
 /** Highlights a fenced block and returns HTML for each code line, preserving token spans across lines. */
 export function highlightCodeLines(source: string, language: string): string[] {
   const normalizedLanguage = language.trim().split(/\s+/)[0] ?? "";
@@ -115,7 +169,9 @@ export function highlightCodeLines(source: string, language: string): string[] {
 
   const marker = "`".repeat(Math.max(3, longestBacktickRun(source) + 1));
   const rendered = renderMarkdown(`${marker}${normalizedLanguage}\n${source}\n${marker}`);
-  const inner = rendered.match(/^<pre><code(?:\s[^>]*)?>([\s\S]*)<\/code><\/pre>$/)?.[1];
+  const inner = rendered.match(
+    /^<pre(?:\s[^>]*)?><code(?:\s[^>]*)?>([\s\S]*)<\/code><\/pre>$/,
+  )?.[1];
   if (inner === undefined) return source.split("\n").map(escapeHtml);
   return splitHighlightedLines(inner.endsWith("\n") ? inner.slice(0, -1) : inner);
 }
@@ -133,6 +189,7 @@ export function renderMarkdownBlocks(
   const processor = markdownProcessor()
     // Generated markup runs after sanitizing, so authored HTML stays constrained by the schema.
     .use(rehypeHighlight)
+    .use(addCodeLanguage)
     .use(rehypeKatex, { output: "mathml" })
     .use(prefixInternalLinks);
   if (resolveLocalUrl || remoteImagePolicy === "block") {
@@ -211,6 +268,22 @@ function markdownProcessor() {
 function noHandler(): undefined {
   return undefined;
 }
+
+const addCodeLanguage: Plugin<[]> = () => (tree) => {
+  visit(tree as MarkdownTreeNode, (node) => {
+    if (node.tagName !== "pre") return;
+    const code = node.children?.find((child) => child.tagName === "code");
+    const classes = code?.properties?.className;
+    const classNames = Array.isArray(classes) ? classes : [classes];
+    const languageClass = classNames.find(
+      (className): className is string =>
+        typeof className === "string" && className.startsWith("language-"),
+    );
+    if (!languageClass) return;
+    const label = codeLanguageLabel(languageClass.slice("language-".length));
+    if (label) node.properties = { ...node.properties, "data-code-language": label };
+  });
+};
 
 function longestBacktickRun(value: string): number {
   let longest = 0;

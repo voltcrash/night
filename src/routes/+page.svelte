@@ -116,6 +116,7 @@
 		renderEditableLine={page.renderEditableLine}
 		renderLiveLine={page.renderLiveLine}
 		liveLineKind={page.liveLineKind}
+		liveCodeLanguage={page.liveCodeLanguage}
 	/>
 </div>
 
