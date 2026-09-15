@@ -47,6 +47,10 @@
 		onPlacePane: (pane: 'output' | 'rendered', edge: PaneEdge) => void;
 		onReload: () => void;
 		onMarkdownChange: (value: string) => void;
+		onEditorBeforeInput: () => void;
+		onEditorCopy: (event: ClipboardEvent) => void;
+		onEditorCut: (event: ClipboardEvent) => void;
+		onEditorPaste: (event: ClipboardEvent) => void;
 		onSourceFocus: () => void;
 		onLiveLineFocus: (line: number) => void;
 		onRenderedLineInput: (line: number, element: HTMLElement) => void;
@@ -60,7 +64,7 @@
 		storageNotice, storageError, outputPaneVisible, renderedPaneVisible, paneLayout, paneOrder, outputView, plainText, plainTextBlocks, htmlSource, htmlSourceBlocks, renderedBlockLines, renderedReadOnly, markdown, markdownLines, liveLine,
 		saveState, transferState, hasContent, renderedMarkdown, shortcuts, primaryModifier,
 		editor = $bindable(), liveEditorContainer = $bindable(), onRetryStorage, onDismissStorageNotice, onToggleSidebar,
-		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopy, onDownload, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
+		splitRatio, contentWidth, onToggleOutputPane, onOutputViewChange, onCopy, onDownload, onToggleRenderedPane, onResize, onResizeEnd, onPlacePane, onReload, onMarkdownChange, onEditorBeforeInput, onEditorCopy, onEditorCut, onEditorPaste, onSourceFocus, onLiveLineFocus, onRenderedLineInput,
 		onRenderedLineKeydown, renderEditableLine, liveLineKind, liveCodeLanguage
 	}: Props = $props();
 
@@ -459,7 +463,7 @@
 						</div>
 					</div>
 				{:else}
-					<textarea bind:this={editor} value={markdown} onfocus={onSourceFocus} oninput={(event) => onMarkdownChange(event.currentTarget.value)} aria-label="Markdown editor" placeholder={'# Start with a title\n\nThen write. Onyx saves to this device as you go.'} spellcheck="true" disabled={saveState === 'loading' || transferState === 'working'}></textarea>
+					<textarea bind:this={editor} value={markdown} onfocus={onSourceFocus} onbeforeinput={onEditorBeforeInput} oncopy={onEditorCopy} oncut={onEditorCut} onpaste={onEditorPaste} oninput={(event) => onMarkdownChange(event.currentTarget.value)} aria-label="Markdown editor" placeholder={'# Start with a title\n\nThen write. Onyx saves to this device as you go.'} spellcheck="true" disabled={saveState === 'loading' || transferState === 'working'}></textarea>
 				{/if}
 			</div>
 		</div>
@@ -492,7 +496,7 @@
 					<div class="live-rendered-content" aria-hidden="true">{@html renderedMarkdown}</div>
 					<div class="live-editing-overlay">
 						{#each markdownLines as line, index}
-							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} style={liveLineStyle(index)} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
+							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} style={liveLineStyle(index)} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} data-code-language={liveCodeLanguage(index) || undefined} spellcheck="true" onfocus={() => onLiveLineFocus(index)} onbeforeinput={onEditorBeforeInput} oncopy={onEditorCopy} oncut={onEditorCut} onpaste={onEditorPaste} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>
 						{/each}
 					</div>
 				</div>

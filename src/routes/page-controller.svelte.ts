@@ -127,6 +127,20 @@ const PREVIEW_DELAY_MS = 120;
 const DEFAULT_CONTENT_WIDTH = 700;
 // Matches the single-column breakpoint in the responsive stylesheet.
 const NARROW_VIEWPORT = "(max-width: 900px)";
+const EDITOR_HISTORY_LIMIT = 200;
+
+type EditorSurface = "source" | "rendered";
+
+interface EditorSelection {
+  start: number;
+  end: number;
+  surface: EditorSurface;
+}
+
+interface EditorHistoryEntry {
+  markdown: string;
+  selection?: EditorSelection;
+}
 
 export function createPageController() {
   function createInitialMarkdown(primaryModifier: PrimaryModifier): string {
@@ -176,7 +190,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   let paneOrder = $state<PaneOrder>("rendered-first");
   let splitRatio = $state(50);
   let contentWidth = $state(DEFAULT_CONTENT_WIDTH);
-  let editingSurface: "source" | "rendered" = "source";
+  let editingSurface: EditorSurface = "source";
   let saveState = $state<SaveState>("loading");
   let notesLoaded = $state(false);
   let saveTimer: number | undefined = $state();
@@ -225,6 +239,10 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   let sidebarCollapsed = $state(false);
   let shortcuts = $state<KeyboardShortcuts>(structuredClone(defaultKeyboardShortcuts));
   let primaryModifier = $state<PrimaryModifier>("meta");
+  let undoStack: EditorHistoryEntry[] = [];
+  let redoStack: EditorHistoryEntry[] = [];
+  let pendingEditorState: EditorHistoryEntry | undefined;
+  let applyingEditorHistory = false;
   let noteList: HTMLElement | undefined = $state();
   let activeNoteSourcePath: string | undefined = $state();
   let localAttachmentUrls = $state<LocalAttachmentUrl[]>([]);
@@ -820,6 +838,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     updatePreviewImmediately("");
     saveState = "saved";
     storageError = "";
+    resetEditorHistory();
   }
 
   async function createBackupRepository(name: string): Promise<void> {
@@ -1124,6 +1143,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     markdown = note.markdown;
     updatePreviewImmediately(note.markdown);
     lastSavedMarkdown = note.markdown;
+    resetEditorHistory();
     saveState = "saved";
     storageError = "";
     sidebarOpen = false;
@@ -1180,6 +1200,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     markdown = "";
     previewMarkdown = "";
     lastSavedMarkdown = "";
+    resetEditorHistory();
     saveState = "saved";
   }
 
@@ -1495,7 +1516,19 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     return true;
   }
 
-  function updateMarkdown(value: string): void {
+  function updateMarkdown(value: string, options: { recordHistory?: boolean } = {}): void {
+    if (value === markdown) {
+      pendingEditorState = undefined;
+      return;
+    }
+    if (options.recordHistory !== false && !applyingEditorHistory) {
+      pushUndo(
+        pendingEditorState?.markdown === markdown
+          ? pendingEditorState
+          : { markdown, selection: getEditorSelection() },
+      );
+    }
+    pendingEditorState = undefined;
     markdown = value;
     queuePreview(value);
     queueSave();
@@ -1641,6 +1674,317 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     requestAnimationFrame(() => focusRenderedLine(line, position));
   }
 
+  function resetEditorHistory(): void {
+    undoStack = [];
+    redoStack = [];
+    pendingEditorState = undefined;
+  }
+
+  function captureEditorState(): void {
+    const selection = getEditorSelection();
+    if (!selection || pendingEditorState?.markdown === markdown) return;
+    pendingEditorState = { markdown, selection };
+  }
+
+  function editorSurfaceForTarget(target: EventTarget | null): EditorSurface | undefined {
+    if (typeof document === "undefined") return;
+    const candidate =
+      target instanceof Node
+        ? target
+        : document.activeElement instanceof Node
+          ? document.activeElement
+          : undefined;
+    if (!candidate) return;
+    if (editor && (candidate === editor || editor.contains(candidate))) return "source";
+    if (
+      liveEditorContainer &&
+      liveEditorContainer.contains(candidate) &&
+      liveLineElement(candidate)
+    )
+      return "rendered";
+  }
+
+  function isEditorTarget(target: EventTarget | null): boolean {
+    return editorSurfaceForTarget(target) !== undefined;
+  }
+
+  function liveLineElement(node: Node | null): HTMLElement | undefined {
+    const element =
+      node instanceof HTMLElement
+        ? node
+        : node?.parentElement instanceof HTMLElement
+          ? node.parentElement
+          : undefined;
+    return element?.closest<HTMLElement>("[data-live-line]") ?? undefined;
+  }
+
+  function liveLineIndex(element: HTMLElement): number | undefined {
+    const value = Number(element.dataset.liveLine);
+    return Number.isInteger(value) && value >= 0 ? value : undefined;
+  }
+
+  function markdownLineOffset(line: number): number {
+    return markdownLines.slice(0, line).reduce((total, value) => total + value.length + 1, 0);
+  }
+
+  function textOffsetAt(element: HTMLElement, node: Node, offset: number): number | undefined {
+    if (node !== element && !element.contains(node)) return;
+    const range = document.createRange();
+    try {
+      range.selectNodeContents(element);
+      range.setEnd(node, offset);
+      return range.cloneContents().textContent?.length ?? 0;
+    } catch {
+      return;
+    }
+  }
+
+  function getRenderedSelection(): Omit<EditorSelection, "surface"> | undefined {
+    if (!liveEditorContainer) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const anchorElement = liveLineElement(selection.anchorNode);
+    const focusElement = liveLineElement(selection.focusNode);
+    const anchorLine = anchorElement && liveLineIndex(anchorElement);
+    const focusLine = focusElement && liveLineIndex(focusElement);
+    if (anchorLine === undefined || focusLine === undefined) return;
+    const anchorOffset =
+      anchorElement && textOffsetAt(anchorElement, selection.anchorNode!, selection.anchorOffset);
+    const focusOffset =
+      focusElement && textOffsetAt(focusElement, selection.focusNode!, selection.focusOffset);
+    if (anchorOffset === undefined || focusOffset === undefined) return;
+    const anchor = markdownLineOffset(anchorLine) + anchorOffset;
+    const focus = markdownLineOffset(focusLine) + focusOffset;
+    return { start: Math.min(anchor, focus), end: Math.max(anchor, focus) };
+  }
+
+  function getEditorSelection(
+    target: EventTarget | null = document.activeElement,
+  ): EditorSelection | undefined {
+    const surface = editorSurfaceForTarget(target);
+    if (surface === "source" && editor) {
+      return { start: editor.selectionStart, end: editor.selectionEnd, surface };
+    }
+    if (surface === "rendered") {
+      const selection = getRenderedSelection();
+      if (selection) return { ...selection, surface };
+    }
+  }
+
+  function textPointAt(element: HTMLElement, offset: number): { node: Node; offset: number } {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let remaining = Math.max(0, offset);
+    let node = walker.nextNode();
+    while (node) {
+      const length = node.textContent?.length ?? 0;
+      if (remaining <= length) return { node, offset: remaining };
+      remaining -= length;
+      node = walker.nextNode();
+    }
+    return { node: element, offset: element.childNodes.length };
+  }
+
+  function markdownPosition(offset: number): { line: number; position: number } {
+    const target = Math.max(0, Math.min(markdown.length, offset));
+    let consumed = 0;
+    for (let line = 0; line < markdownLines.length; line += 1) {
+      const length = markdownLines[line]?.length ?? 0;
+      if (target <= consumed + length) return { line, position: target - consumed };
+      consumed += length + 1;
+    }
+    const line = Math.max(0, markdownLines.length - 1);
+    return { line, position: markdownLines[line]?.length ?? 0 };
+  }
+
+  function setRenderedGlobalSelection(start: number, end: number): void {
+    if (!liveEditorContainer) return;
+    const startPosition = markdownPosition(start);
+    const endPosition = markdownPosition(end);
+    const startElement = liveEditorContainer.querySelector<HTMLElement>(
+      `[data-live-line="${startPosition.line}"]`,
+    );
+    const endElement = liveEditorContainer.querySelector<HTMLElement>(
+      `[data-live-line="${endPosition.line}"]`,
+    );
+    if (!startElement || !endElement) return;
+    const startPoint = textPointAt(startElement, startPosition.position);
+    const endPoint = textPointAt(endElement, endPosition.position);
+    const range = document.createRange();
+    range.setStart(startPoint.node, startPoint.offset);
+    range.setEnd(endPoint.node, endPoint.offset);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }
+
+  function restoreEditorSelection(selection: EditorSelection): void {
+    if (selection.surface === "source") {
+      if (!editor) {
+        setOutputView("markdown");
+        void tick().then(() => restoreEditorSelection(selection));
+        return;
+      }
+      requestAnimationFrame(() => {
+        editor?.focus();
+        editor?.setSelectionRange(
+          Math.min(selection.start, markdown.length),
+          Math.min(selection.end, markdown.length),
+        );
+      });
+      return;
+    }
+    const position = markdownPosition(selection.end);
+    liveLine = position.line;
+    requestAnimationFrame(() => {
+      if (!liveEditorContainer || renderedReadOnly) return;
+      focusRenderedLine(position.line, position.position);
+      if (selection.start !== selection.end) {
+        setRenderedGlobalSelection(selection.start, selection.end);
+      }
+    });
+  }
+
+  function rememberEditorState(selection = getEditorSelection()): void {
+    if (selection) pendingEditorState = { markdown, selection };
+  }
+
+  function pushUndo(entry: EditorHistoryEntry): void {
+    undoStack.push(entry);
+    if (undoStack.length > EDITOR_HISTORY_LIMIT) undoStack.shift();
+    redoStack = [];
+  }
+
+  function undo(): boolean {
+    const entry = undoStack.pop();
+    if (!entry) return false;
+    redoStack.push({ markdown, selection: getEditorSelection() });
+    applyingEditorHistory = true;
+    updateMarkdown(entry.markdown, { recordHistory: false });
+    applyingEditorHistory = false;
+    if (entry.selection) restoreEditorSelection(entry.selection);
+    return true;
+  }
+
+  function redo(): boolean {
+    const entry = redoStack.pop();
+    if (!entry) return false;
+    undoStack.push({ markdown, selection: getEditorSelection() });
+    applyingEditorHistory = true;
+    updateMarkdown(entry.markdown, { recordHistory: false });
+    applyingEditorHistory = false;
+    if (entry.selection) restoreEditorSelection(entry.selection);
+    return true;
+  }
+
+  function replaceEditorSelection(selection: EditorSelection, replacement: string): boolean {
+    const start = Math.min(selection.start, selection.end);
+    const end = Math.max(selection.start, selection.end);
+    if (start === end && replacement.length === 0) return false;
+    rememberEditorState(selection);
+    updateMarkdown(`${markdown.slice(0, start)}${replacement}${markdown.slice(end)}`);
+    restoreEditorSelection({
+      start: start + replacement.length,
+      end: start + replacement.length,
+      surface: selection.surface,
+    });
+    return true;
+  }
+
+  function writeEditorClipboard(text: string): boolean {
+    const clipboard = navigator.clipboard;
+    if (!clipboard || typeof clipboard.writeText !== "function") return false;
+    void Promise.resolve(clipboard.writeText(text)).catch(() => {
+      transferState = "error";
+      transferMessage = "The browser did not allow copying to the clipboard.";
+    });
+    return true;
+  }
+
+  function copyEditorSelection(target: EventTarget | null = document.activeElement): boolean {
+    const selection = getEditorSelection(target);
+    if (!selection || selection.start === selection.end) return false;
+    return writeEditorClipboard(markdown.slice(selection.start, selection.end));
+  }
+
+  function cutEditorSelection(target: EventTarget | null = document.activeElement): boolean {
+    const selection = getEditorSelection(target);
+    if (!selection || selection.start === selection.end) return false;
+    if (!writeEditorClipboard(markdown.slice(selection.start, selection.end))) return false;
+    return replaceEditorSelection(selection, "");
+  }
+
+  function pasteEditorSelection(): boolean {
+    const selection = getEditorSelection();
+    const clipboard = navigator.clipboard;
+    if (!selection || !clipboard || typeof clipboard.readText !== "function") return false;
+    rememberEditorState(selection);
+    void Promise.resolve(clipboard.readText())
+      .then((text) => replaceEditorSelection(selection, text))
+      .catch(() => {
+        transferState = "error";
+        transferMessage = "The browser did not allow pasting from the clipboard.";
+      });
+    return true;
+  }
+
+  function selectAllEditorContent(target: EventTarget | null = document.activeElement): boolean {
+    const surface = editorSurfaceForTarget(target);
+    if (surface === "source" && editor) {
+      editor.focus();
+      editor.select();
+      editingSurface = "source";
+      return true;
+    }
+    if (surface !== "rendered" || !liveEditorContainer) return false;
+    const lines = [...liveEditorContainer.querySelectorAll<HTMLElement>("[data-live-line]")];
+    const first = lines[0];
+    const last = lines.at(-1);
+    if (!first || !last) return false;
+    const range = document.createRange();
+    range.setStart(first, 0);
+    range.setEnd(last, last.childNodes.length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    editingSurface = "rendered";
+    return true;
+  }
+
+  function handleEditorCopy(event: ClipboardEvent): void {
+    const selection = getEditorSelection(event.currentTarget);
+    if (!selection || selection.start === selection.end) return;
+    const text = markdown.slice(selection.start, selection.end);
+    if (event.clipboardData) {
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", text);
+    } else {
+      writeEditorClipboard(text);
+    }
+  }
+
+  function handleEditorCut(event: ClipboardEvent): void {
+    const selection = getEditorSelection(event.currentTarget);
+    if (!selection || selection.start === selection.end) return;
+    const text = markdown.slice(selection.start, selection.end);
+    if (event.clipboardData) {
+      event.preventDefault();
+      event.clipboardData.setData("text/plain", text);
+    } else if (!writeEditorClipboard(text)) {
+      return;
+    }
+    replaceEditorSelection(selection, "");
+  }
+
+  function handleEditorPaste(event: ClipboardEvent): void {
+    if (!isEditorTarget(event.currentTarget)) return;
+    const text = event.clipboardData?.getData("text/plain");
+    if (text === undefined) return;
+    const selection = getEditorSelection(event.currentTarget);
+    if (!selection) return;
+    event.preventDefault();
+    replaceEditorSelection(selection, text);
+  }
+
   function setFont(role: FontRole, id: string): void {
     fonts = { ...fonts, [role]: id };
     applyFontChoices(fonts);
@@ -1680,6 +2024,16 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   function handleRenderedLineKeydown(event: KeyboardEvent, line: number): void {
     const element = event.currentTarget as HTMLElement;
+    const editorSelection = getEditorSelection(element);
+    if (
+      editorSelection &&
+      editorSelection.start !== editorSelection.end &&
+      (event.key === "Backspace" || event.key === "Delete")
+    ) {
+      event.preventDefault();
+      replaceEditorSelection(editorSelection, "");
+      return;
+    }
     const selection = getSourceSelection(element);
     if (!selection) return;
     const value = element.textContent ?? "";
@@ -1718,18 +2072,18 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
 
   function getSourceSelection(element: HTMLElement): { start: number; end: number } | undefined {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !element.contains(selection.anchorNode)) return;
+    if (
+      !selection ||
+      selection.rangeCount === 0 ||
+      (selection.anchorNode !== element && !element.contains(selection.anchorNode)) ||
+      (selection.focusNode !== element && !element.contains(selection.focusNode))
+    )
+      return;
     const range = selection.getRangeAt(0);
-    const start = range.cloneRange();
-    start.selectNodeContents(element);
-    start.setEnd(range.startContainer, range.startOffset);
-    const end = range.cloneRange();
-    end.selectNodeContents(element);
-    end.setEnd(range.endContainer, range.endOffset);
-    return {
-      start: start.cloneContents().textContent?.length ?? 0,
-      end: end.cloneContents().textContent?.length ?? 0,
-    };
+    const start = textOffsetAt(element, range.startContainer, range.startOffset);
+    const end = textOffsetAt(element, range.endContainer, range.endOffset);
+    if (start === undefined || end === undefined) return;
+    return { start: Math.min(start, end), end: Math.max(start, end) };
   }
 
   function getCaretOffset(element: HTMLElement): number {
@@ -1895,6 +2249,21 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     const action = (Object.keys(shortcuts) as ShortcutAction[]).find((candidate) =>
       shortcutMatchesEvent(shortcuts[candidate], event, primaryModifier),
     );
+
+    if (action && isEditorShortcutAction(action)) {
+      if (!isEditorTarget(event.target)) return;
+      if (runEditorShortcut(action, event.target)) event.preventDefault();
+      return;
+    }
+
+    if (!action && isEditorTarget(event.target)) {
+      const implicitAction = editorShortcutAlias(event);
+      if (implicitAction && runEditorShortcut(implicitAction, event.target)) {
+        event.preventDefault();
+        return;
+      }
+    }
+
     if (!action) return;
     const shortcut = shortcuts[action];
     if (
@@ -1927,6 +2296,32 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
         searchInput?.blur();
       }
     }
+  }
+
+  function isEditorShortcutAction(action: ShortcutAction): boolean {
+    return ["cutSelection", "copySelection", "paste", "undo", "redo", "selectAll"].includes(action);
+  }
+
+  function editorShortcutAlias(event: KeyboardEvent): ShortcutAction | undefined {
+    const primaryPressed = primaryModifier === "meta" ? event.metaKey : event.ctrlKey;
+    if (!primaryPressed || event.altKey) return;
+    const key = event.key.toLowerCase();
+    if (key === "x" && !event.shiftKey) return "cutSelection";
+    if (key === "c" && !event.shiftKey) return "copySelection";
+    if (key === "v" && !event.shiftKey) return "paste";
+    if (key === "a" && !event.shiftKey) return "selectAll";
+    if (key === "z") return event.shiftKey ? "redo" : "undo";
+    if (key === "y" && !event.shiftKey) return "redo";
+  }
+
+  function runEditorShortcut(action: ShortcutAction, target: EventTarget | null): boolean {
+    if (action === "cutSelection") return cutEditorSelection(target);
+    if (action === "copySelection") return copyEditorSelection(target);
+    if (action === "paste") return pasteEditorSelection();
+    if (action === "undo") return undo() || isEditorTarget(target);
+    if (action === "redo") return redo() || isEditorTarget(target);
+    if (action === "selectAll") return selectAllEditorContent(target);
+    return false;
   }
 
   function isTypingTarget(target: EventTarget | null): boolean {
@@ -2518,6 +2913,10 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     toggleRenderedReadOnly,
     focusSourceEditor,
     focusLiveLine,
+    captureEditorState,
+    handleEditorCopy,
+    handleEditorCut,
+    handleEditorPaste,
     updateMarkdown,
     updateRenderedLine,
     handleRenderedLineKeydown,

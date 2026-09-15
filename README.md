@@ -34,18 +34,23 @@ use a slide-over note list. Preferences are saved per browser when local storage
 
 ## Keyboard shortcuts
 
-| Shortcut       | Action                               |
-| -------------- | ------------------------------------ |
-| `⌘ K`          | Open command palette                 |
-| `⌘ ⇧ F` or `/` | Search all notes                     |
-| `⌘ ⏎`          | Create a note                        |
-| `⌘ S`          | Save the active note                 |
-| `⌘ B` / `⌘ I`  | Format selected text                 |
-| `⌘ ⇧ P`        | Toggle source/preview                |
-| `⌘ \`          | Toggle the note sidebar              |
-| `⌘ ⇧ L`        | Cycle light, dark, and system themes |
-| `?`            | Show all shortcuts                   |
-| `Esc`          | Close the active panel               |
+| Shortcut        | Action                               |
+| --------------- | ------------------------------------ |
+| `⌘ K`           | Open command palette                 |
+| `⌘ ⇧ F` or `/`  | Search all notes                     |
+| `⌘ ⏎`           | Create a note                        |
+| `⌘ S`           | Save the active note                 |
+| `⌘ X` / `⌘ C`   | Cut or copy the current selection    |
+| `⌘ V`           | Paste into the active editor         |
+| `⌘ Z`           | Undo the last edit                   |
+| `⌘ ⇧ Z` / `⌘ Y` | Redo the last undone edit            |
+| `⌘ A`           | Select all Markdown                  |
+| `⌘ B` / `⌘ I`   | Format selected text                 |
+| `⌘ ⇧ P`         | Toggle source/preview                |
+| `⌘ \`           | Toggle the note sidebar              |
+| `⌘ ⇧ L`         | Cycle light, dark, and system themes |
+| `?`             | Show all shortcuts                   |
+| `Esc`           | Close the active panel               |
 
 Use `Ctrl` instead of `⌘` on Windows and Linux.
 

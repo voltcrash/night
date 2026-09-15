@@ -102,6 +102,10 @@
 		onPlacePane={page.placePane}
 		onReload={() => location.reload()}
 		onMarkdownChange={page.updateMarkdown}
+		onEditorBeforeInput={page.captureEditorState}
+		onEditorCopy={page.handleEditorCopy}
+		onEditorCut={page.handleEditorCut}
+		onEditorPaste={page.handleEditorPaste}
 		onSourceFocus={page.focusSourceEditor}
 		onLiveLineFocus={page.focusLiveLine}
 		onRenderedLineInput={page.updateRenderedLine}

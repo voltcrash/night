@@ -339,6 +339,63 @@ test("formats Markdown while editing in the page pane", async ({ page }) => {
   await expect(line).toContainText("# Inline heading");
 });
 
+test("supports standard editing shortcuts in the page pane", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+
+  const line = page.getByRole("textbox", { name: "Markdown line 1", exact: true });
+  await line.fill("# Shortcut target");
+  await line.press("End");
+  await line.pressSequentially("!");
+  await line.press("ControlOrMeta+Z");
+  await expect(line).toContainText("# Shortcut target");
+  await line.press("ControlOrMeta+Y");
+  await expect(line).toContainText("# Shortcut target!");
+
+  await page.evaluate(() => {
+    const state = window as typeof window & { onyxCopied?: string; onyxPaste?: string };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => void (state.onyxCopied = text),
+        readText: async () => state.onyxPaste ?? "",
+      },
+    });
+  });
+
+  await line.evaluate((element) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node && !node.data.includes("target")) node = walker.nextNode() as Text | null;
+    const textNode = node;
+    if (!textNode) throw new Error("The target text is not editable");
+    const start = textNode.data.indexOf("target");
+    const range = document.createRange();
+    range.setStart(textNode, start);
+    range.setEnd(textNode, start + "target".length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    (element as HTMLElement).focus();
+  });
+  await line.press("ControlOrMeta+C");
+  await expect
+    .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
+    .toBe("target");
+  await line.press("ControlOrMeta+X");
+  await expect(line).toContainText("# Shortcut !");
+
+  await page.evaluate(() => {
+    (window as typeof window & { onyxPaste?: string }).onyxPaste = "target";
+  });
+  await line.press("ControlOrMeta+V");
+  await expect(line).toContainText("# Shortcut target!");
+  await line.press("ControlOrMeta+Z");
+  await expect(line).toContainText("# Shortcut !");
+  await line.press("ControlOrMeta+Shift+Z");
+  await expect(line).toContainText("# Shortcut target!");
+});
+
 test("keeps the editable page preview aligned with read-only rendering", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "Markdown editor" });
