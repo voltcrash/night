@@ -6,7 +6,6 @@ export type ColorTheme =
   | "ember"
   | "monochrome"
   | "ocean"
-  | "arctic"
   | "phosphor"
   | "espresso"
   | "ink"
@@ -18,7 +17,6 @@ export const colorThemeOptions: ReadonlyArray<{ id: ColorTheme; label: string; h
   { id: "ember", label: "Ember", hint: "Warm paper with a terracotta accent." },
   { id: "monochrome", label: "Monochrome", hint: "Pure black and white, with no accent hue." },
   { id: "ocean", label: "Ocean", hint: "Cool blue-gray surfaces with a clear teal accent." },
-  { id: "arctic", label: "Arctic", hint: "Quiet steel-blue surfaces with an icy blue accent." },
   {
     id: "phosphor",
     label: "Phosphor",
@@ -55,7 +53,6 @@ const THEME_COLOR: Record<ColorTheme, Record<ResolvedTheme, string>> = {
   ember: { light: "#fbfaf7", dark: "#1b1b19" },
   monochrome: { light: "#ffffff", dark: "#000000" },
   ocean: { light: "#f8fcfd", dark: "#14242c" },
-  arctic: { light: "#f8fbfd", dark: "#17252e" },
   phosphor: { light: "#f7faf7", dark: "#1a1f1a" },
   espresso: { light: "#f7f3ee", dark: "#261e1b" },
   ink: { light: "#f8fbff", dark: "#16233a" },
