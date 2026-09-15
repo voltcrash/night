@@ -911,6 +911,76 @@
   background: transparent;
   color: inherit;
 }
+.prose pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  font-size: inherit;
+}
+.prose pre code .hljs-comment,
+.prose pre code .hljs-quote,
+.prose pre code .hljs-doctag {
+  color: var(--code-syntax-comment);
+  font-style: italic;
+}
+.prose pre code .hljs-keyword,
+.prose pre code .hljs-selector-tag,
+.prose pre code .hljs-literal,
+.prose pre code .hljs-section,
+.prose pre code .hljs-name {
+  color: var(--code-syntax-keyword);
+}
+.prose pre code .hljs-string,
+.prose pre code .hljs-regexp {
+  color: var(--code-syntax-string);
+}
+.prose pre code .hljs-attribute,
+.prose pre code .hljs-attr {
+  color: var(--code-syntax-attribute);
+}
+.prose pre code .hljs-number,
+.prose pre code .hljs-symbol,
+.prose pre code .hljs-bullet {
+  color: var(--code-syntax-number);
+}
+.prose pre code .hljs-title,
+.prose pre code .hljs-title.class_,
+.prose pre code .hljs-title.function_ {
+  color: var(--code-syntax-title);
+}
+.prose pre code .hljs-variable,
+.prose pre code .hljs-template-variable,
+.prose pre code .hljs-type,
+.prose pre code .hljs-built_in,
+.prose pre code .hljs-selector-class,
+.prose pre code .hljs-selector-id,
+.prose pre code .hljs-selector-attr,
+.prose pre code .hljs-selector-pseudo {
+  color: var(--code-syntax-variable);
+}
+.prose pre code .hljs-meta,
+.prose pre code .hljs-meta .hljs-string,
+.prose pre code .hljs-params {
+  color: var(--code-syntax-meta);
+}
+.prose pre code .hljs-tag {
+  color: var(--code-syntax-tag);
+}
+.prose pre code .hljs-addition {
+  color: var(--code-syntax-addition);
+}
+.prose pre code .hljs-deletion {
+  color: var(--code-syntax-deletion);
+}
+.prose pre code .hljs-link {
+  color: var(--code-syntax-string);
+  text-decoration: underline;
+}
+.prose pre code .hljs-emphasis {
+  font-style: italic;
+}
+.prose pre code .hljs-strong {
+  font-weight: 700;
+}
 .prose kbd {
   display: inline-block;
   min-width: 1.75em;

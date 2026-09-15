@@ -1,4 +1,5 @@
 import rehypeKatex from "rehype-katex";
+import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize, { defaultSchema, type Options } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
@@ -118,7 +119,8 @@ export function renderMarkdownBlocks(
 ): RenderedBlock[] {
   const remoteImagePolicy = options.remoteImages ?? "block";
   const processor = markdownProcessor()
-    // KaTeX runs after sanitizing, as its output is generated rather than authored.
+    // Generated markup runs after sanitizing, so authored HTML stays constrained by the schema.
+    .use(rehypeHighlight)
     .use(rehypeKatex, { output: "mathml" })
     .use(prefixInternalLinks);
   if (resolveLocalUrl || remoteImagePolicy === "block") {
