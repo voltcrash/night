@@ -917,7 +917,7 @@
   top: 8px;
   left: 18px;
   color: var(--code-syntax-comment);
-  font: 600 10px / 1.2 var(--font-code);
+  font: 600 8px / 1.2 var(--font-code);
   letter-spacing: 0.03em;
   white-space: nowrap;
   pointer-events: none;
