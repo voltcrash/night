@@ -719,159 +719,36 @@ kbd {
   line-height: 1.4;
 }
 .theme-preview {
+  position: relative;
   display: grid;
-  grid-template-columns: 16px 1fr;
-  grid-template-rows: 14px 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 1fr;
   width: 58px;
   height: 42px;
   overflow: hidden;
-  border: 1px solid #dedcd5;
+  border: 1px solid var(--theme-preview-border);
   border-radius: 6px;
-  background: #fbfaf7;
+  background: var(--theme-preview-paper);
 }
 .theme-preview i:first-child {
-  grid-row: 1 / 3;
-  background: #f6f5f1;
+  grid-column: 1;
+  grid-row: 1;
+  background: var(--theme-preview-light);
 }
 .theme-preview i:nth-child(2) {
-  background: #262623;
+  grid-column: 2;
+  grid-row: 1;
+  background: var(--theme-preview-dark);
 }
 .theme-preview i:last-child {
+  position: absolute;
+  right: 7px;
+  bottom: 7px;
   width: 16px;
   height: 4px;
-  margin: 7px;
+  margin: 0;
   border-radius: 2px;
-  background: #c65f2e;
-}
-.monochrome-preview {
-  border-color: #eaeaea;
-  background: #ffffff;
-}
-.monochrome-preview i:first-child {
-  background: #fafafa;
-}
-.monochrome-preview i:nth-child(2) {
-  background: #000000;
-}
-.monochrome-preview i:last-child {
-  background: #000000;
-}
-.forest-preview {
-  border-color: #d0dbd1;
-  background: #f7faf7;
-}
-.forest-preview i:first-child {
-  background: #f0f5f1;
-}
-.forest-preview i:nth-child(2) {
-  background: #24372a;
-}
-.forest-preview i:last-child {
-  background: #3f7d58;
-}
-.ocean-preview {
-  border-color: #ccdbe1;
-  background: #f8fcfd;
-}
-.ocean-preview i:first-child {
-  background: #f0f5f7;
-}
-.ocean-preview i:nth-child(2) {
-  background: #23323a;
-}
-.ocean-preview i:last-child {
-  background: #2f7896;
-}
-.arctic-preview {
-  border-color: #ccdbe2;
-  background: #f8fbfd;
-}
-.arctic-preview i:first-child {
-  background: #f0f5f8;
-}
-.arctic-preview i:nth-child(2) {
-  background: #24343b;
-}
-.arctic-preview i:last-child {
-  background: #4d8ca8;
-}
-.phosphor-preview {
-  border-color: #344034;
-  background: #1a1f1a;
-}
-.phosphor-preview i:first-child {
-  background: #111411;
-}
-.phosphor-preview i:nth-child(2) {
-  background: #111411;
-}
-.phosphor-preview i:last-child {
-  background: #72e06a;
-}
-.espresso-preview {
-  border-color: #d4c5b7;
-  background: #f7f3ee;
-}
-.espresso-preview i:first-child {
-  background: #ede4da;
-}
-.espresso-preview i:nth-child(2) {
-  background: #2a1e17;
-}
-.espresso-preview i:last-child {
-  background: #d9822b;
-}
-.ink-preview {
-  border-color: #cbd8e6;
-  background: #f8fbff;
-}
-.ink-preview i:first-child {
-  background: #eef4fa;
-}
-.ink-preview i:nth-child(2) {
-  background: #22324a;
-}
-.ink-preview i:last-child {
-  background: #315fc4;
-}
-.lavender-preview {
-  border-color: #d8d1e3;
-  background: #fbfaff;
-}
-.lavender-preview i:first-child {
-  background: #f4f1f9;
-}
-.lavender-preview i:nth-child(2) {
-  background: #302b3d;
-}
-.lavender-preview i:last-child {
-  background: #7254a3;
-}
-.rose-preview {
-  border-color: #e2d1d6;
-  background: #fffafb;
-}
-.rose-preview i:first-child {
-  background: #faf1f3;
-}
-.rose-preview i:nth-child(2) {
-  background: #3d2a30;
-}
-.rose-preview i:last-child {
-  background: #a84e60;
-}
-.solarized-preview {
-  border-color: #d3c9b2;
-  background: #fdf6e3;
-}
-.solarized-preview i:first-child {
-  background: #f2ecda;
-}
-.solarized-preview i:nth-child(2) {
-  background: #002b36;
-}
-.solarized-preview i:last-child {
-  background: #a86a00;
+  background: var(--theme-preview-accent);
 }
 .settings-danger {
   display: flex;

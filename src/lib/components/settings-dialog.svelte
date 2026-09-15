@@ -103,6 +103,9 @@
 		{ id: 'dark', label: 'Dark', hint: 'Low-glare onyx for night writing.' },
 		{ id: 'system', label: 'System', hint: 'Follow your operating system automatically.' }
 	];
+	function themePreviewStyle(option: (typeof colorThemeOptions)[number]): string {
+		return `--theme-preview-border: ${option.preview.border}; --theme-preview-paper: ${option.preview.paper}; --theme-preview-light: ${option.preview.light}; --theme-preview-dark: ${option.preview.dark}; --theme-preview-accent: ${option.preview.accent};`;
+	}
 	const fontsAreDefault = $derived(
 		fontRoles.every(({ id }) => fonts[id] === defaultFontChoices[id])
 	);
@@ -339,7 +342,7 @@
 					<div class="theme-options" role="radiogroup" aria-label="Color theme">
 						{#each colorThemeOptions as option (option.id)}
 							<button class:active={colorTheme === option.id} role="radio" aria-checked={colorTheme === option.id} onclick={() => onColorThemeChange(option.id)}>
-								<span class="theme-preview {option.id}-preview" aria-hidden="true"><i></i><i></i><i></i></span>
+								<span class="theme-preview" style={themePreviewStyle(option)} aria-hidden="true"><i></i><i></i><i></i></span>
 								<span><strong>{option.label}</strong><small>{option.hint}</small></span>
 							</button>
 						{/each}

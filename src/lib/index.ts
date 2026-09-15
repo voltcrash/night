@@ -25,6 +25,7 @@ export {
 export {
   applyColorTheme,
   applyTheme,
+  colorThemeIds,
   colorThemeOptions,
   nextThemePreference,
   readColorTheme,
@@ -32,6 +33,7 @@ export {
   resolveTheme,
   watchSystemTheme,
   type ColorTheme,
+  type ColorThemeOption,
   type ResolvedTheme,
   type ThemePreference,
 } from "./theme.js";

@@ -19,8 +19,8 @@ adds private backup and cross-device restore.
   file, and the PDF view prints through the browser's print dialog, where it can be saved as a PDF.
 - Choose a light, dark, or system theme. System follows the operating system preference, updates
   when that preference changes, and the selected mode is saved in this browser.
-- Choose from eleven color themes: Ember, Monochrome, Forest, Ocean, Arctic, Phosphor, Espresso,
-  Ink, Lavender, Rose, and Solarized.
+- Choose from twelve color themes. Monochrome is the default: Ember, Monochrome, Ocean, Forest,
+  Graphite, Marigold, Espresso, Ink, Lavender, Burgundy, Rose, and Solarized are available.
 - Import Markdown folders or ZIP archives, including locally referenced attachments.
 - Export the complete vault to a folder when the browser supports the File System Access API, or
   download it as a ZIP in other browsers.
@@ -113,6 +113,10 @@ Onyx requests the `repo` scope so it can create private repositories and write b
 - `src/lib/components/` contains focused workspace, navigation, dialog, and status components.
 - `src/routes/styles/` separates base tokens, application shell, editor, dialog, command-palette,
   responsive, and print styles.
+- `src/lib/theme-catalog.json` is the source of truth for theme metadata and preference keys;
+  `src/lib/theme-tokens.json` contains the semantic palette overrides. Run `vp run themes:generate`
+  after changing either file; it updates the static CSS and first-paint initializer consumed by the
+  app.
 - `src/lib/storage/` implements the IndexedDB vault and its OPFS/native-folder file abstraction.
 - `src/lib/markdown-transfer.ts` implements folder and ZIP import/export.
 - `src/lib/markdown-output.ts` formats the generated HTML, builds standalone HTML exports, and

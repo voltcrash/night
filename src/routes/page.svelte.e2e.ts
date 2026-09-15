@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import themeCatalog from "../lib/theme-catalog.json" with { type: "json" };
 
 // The output switcher shows only the current view until it is hovered.
 async function openOutputSwitcher(page: Page): Promise<void> {
@@ -203,30 +204,24 @@ test("traps modal focus and returns it to the opener", async ({ page }) => {
 test("offers additional color themes and persists the selection", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-color-theme",
+    themeCatalog.defaultColorTheme,
+  );
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Themes", exact: true }).click();
 
   const colorThemes = page.getByRole("radiogroup", { name: "Color theme" });
-  await expect(colorThemes.getByRole("radio")).toHaveCount(11);
+  await expect(colorThemes.getByRole("radio")).toHaveCount(Object.keys(themeCatalog.themes).length);
 
-  for (const theme of [
-    { id: "ember", label: "Ember" },
-    { id: "monochrome", label: "Monochrome" },
-    { id: "forest", label: "Forest" },
-    { id: "ocean", label: "Ocean" },
-    { id: "arctic", label: "Arctic" },
-    { id: "phosphor", label: "Phosphor" },
-    { id: "espresso", label: "Espresso" },
-    { id: "ink", label: "Ink" },
-    { id: "lavender", label: "Lavender" },
-    { id: "rose", label: "Rose" },
-    { id: "solarized", label: "Solarized" },
-  ]) {
-    const option = colorThemes.getByRole("radio").filter({ hasText: theme.label });
+  for (const [id, theme] of Object.entries(themeCatalog.themes)) {
+    const option = colorThemes.getByRole("radio").filter({
+      has: page.getByText(theme.label, { exact: true }),
+    });
     await expect(option).toHaveCount(1);
     await option.click();
-    await expect(page.locator("html")).toHaveAttribute("data-color-theme", theme.id);
+    await expect(page.locator("html")).toHaveAttribute("data-color-theme", id);
     await expect(option).toHaveAttribute("aria-checked", "true");
   }
 
@@ -341,6 +336,10 @@ test("keeps startup usable when localStorage and persistent storage are unavaila
   await page.goto("/");
 
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-color-theme",
+    themeCatalog.defaultColorTheme,
+  );
   await expect(page.getByRole("status")).toContainText("Browser settings cannot be saved");
   await expect(page.getByRole("status")).toContainText("Persistent storage is unavailable");
 });
