@@ -18,6 +18,7 @@ export const colorThemeIds: ReadonlyArray<ColorTheme> = colorThemeOptions.map(
 
 const STORAGE_KEY = themeCatalog.storageKeys.mode;
 const COLOR_THEME_STORAGE_KEY = themeCatalog.storageKeys.color;
+const DEFAULT_COLOR_THEME = themeCatalog.defaultColorTheme as ColorTheme;
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 function paintThemeColor(colorTheme: ColorTheme, resolved: ResolvedTheme): void {
@@ -38,7 +39,7 @@ export function readThemePreference(): ThemePreference {
 
 export function readColorTheme(): ColorTheme {
   const stored = readLocalStorage(COLOR_THEME_STORAGE_KEY);
-  return isColorTheme(stored) ? stored : "ember";
+  return isColorTheme(stored) ? stored : DEFAULT_COLOR_THEME;
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {

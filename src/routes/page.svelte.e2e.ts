@@ -204,6 +204,10 @@ test("traps modal focus and returns it to the opener", async ({ page }) => {
 test("offers additional color themes and persists the selection", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-color-theme",
+    themeCatalog.defaultColorTheme,
+  );
 
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Themes", exact: true }).click();
@@ -332,6 +336,10 @@ test("keeps startup usable when localStorage and persistent storage are unavaila
   await page.goto("/");
 
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-color-theme",
+    themeCatalog.defaultColorTheme,
+  );
   await expect(page.getByRole("status")).toContainText("Browser settings cannot be saved");
   await expect(page.getByRole("status")).toContainText("Persistent storage is unavailable");
 });

@@ -12,11 +12,14 @@ const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
 const tokens = JSON.parse(fs.readFileSync(tokensPath, "utf8"));
 const themeIds = Object.keys(catalog.themes);
 const storageKeys = catalog.storageKeys;
+const defaultColorTheme = catalog.defaultColorTheme;
 const variableNames = Object.keys(tokens.defaults.light);
 
 if (themeIds.length === 0) throw new Error("The theme catalog must contain at least one theme.");
 if (!Object.hasOwn(catalog.themes, "ember"))
-  throw new Error("The theme catalog must include ember as its fallback theme.");
+  throw new Error("The theme catalog must include ember as its base palette.");
+if (!Object.hasOwn(catalog.themes, defaultColorTheme))
+  throw new Error("The catalog default color theme must be a known theme.");
 if (!storageKeys?.mode || !storageKeys?.color)
   throw new Error("The theme catalog must define storage keys.");
 
@@ -81,11 +84,17 @@ const initScript =
   "    const color = localStorage.getItem(" +
   JSON.stringify(storageKeys.color) +
   ");\n" +
-  '    document.documentElement.dataset.colorTheme = colorThemes.includes(color) ? color : "ember";\n' +
+  "    document.documentElement.dataset.colorTheme = colorThemes.includes(color)\n" +
+  "      ? color\n" +
+  "      : " +
+  JSON.stringify(defaultColorTheme) +
+  ";\n" +
   "  } catch {\n" +
   '    document.documentElement.dataset.theme = systemDark() ? "dark" : "light";\n' +
   '    document.documentElement.dataset.themePreference = "system";\n' +
-  '    document.documentElement.dataset.colorTheme = "ember";\n' +
+  "    document.documentElement.dataset.colorTheme = " +
+  JSON.stringify(defaultColorTheme) +
+  ";\n" +
   "  }\n" +
   "})();\n";
 

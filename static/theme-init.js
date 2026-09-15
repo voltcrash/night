@@ -24,10 +24,12 @@
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     document.documentElement.dataset.themePreference = preference;
     const color = localStorage.getItem("onyx-color-theme");
-    document.documentElement.dataset.colorTheme = colorThemes.includes(color) ? color : "ember";
+    document.documentElement.dataset.colorTheme = colorThemes.includes(color)
+      ? color
+      : "monochrome";
   } catch {
     document.documentElement.dataset.theme = systemDark() ? "dark" : "light";
     document.documentElement.dataset.themePreference = "system";
-    document.documentElement.dataset.colorTheme = "ember";
+    document.documentElement.dataset.colorTheme = "monochrome";
   }
 })();
