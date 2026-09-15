@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import themeCatalog from "../lib/theme-catalog.json" with { type: "json" };
 
 // The output switcher shows only the current view until it is hovered.
 async function openOutputSwitcher(page: Page): Promise<void> {
@@ -208,28 +209,15 @@ test("offers additional color themes and persists the selection", async ({ page 
   await page.getByRole("button", { name: "Themes", exact: true }).click();
 
   const colorThemes = page.getByRole("radiogroup", { name: "Color theme" });
-  await expect(colorThemes.getByRole("radio")).toHaveCount(12);
+  await expect(colorThemes.getByRole("radio")).toHaveCount(Object.keys(themeCatalog.themes).length);
 
-  for (const theme of [
-    { id: "ember", label: "Ember" },
-    { id: "monochrome", label: "Monochrome" },
-    { id: "ocean", label: "Ocean" },
-    { id: "phosphor", label: "Forest" },
-    { id: "graphite", label: "Graphite" },
-    { id: "marigold", label: "Marigold" },
-    { id: "espresso", label: "Espresso" },
-    { id: "ink", label: "Ink" },
-    { id: "lavender", label: "Lavender" },
-    { id: "burgundy", label: "Burgundy" },
-    { id: "rose", label: "Rose" },
-    { id: "solarized", label: "Solarized" },
-  ]) {
+  for (const [id, theme] of Object.entries(themeCatalog.themes)) {
     const option = colorThemes.getByRole("radio").filter({
       has: page.getByText(theme.label, { exact: true }),
     });
     await expect(option).toHaveCount(1);
     await option.click();
-    await expect(page.locator("html")).toHaveAttribute("data-color-theme", theme.id);
+    await expect(page.locator("html")).toHaveAttribute("data-color-theme", id);
     await expect(option).toHaveAttribute("aria-checked", "true");
   }
 

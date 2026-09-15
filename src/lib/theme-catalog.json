@@ -1,0 +1,188 @@
+{
+  "storageKeys": {
+    "mode": "onyx-theme",
+    "color": "onyx-color-theme"
+  },
+  "themes": {
+    "ember": {
+      "label": "Ember",
+      "hint": "Warm paper with a terracotta accent.",
+      "themeColor": {
+        "light": "#fbfaf7",
+        "dark": "#1b1b19"
+      },
+      "preview": {
+        "border": "#dedcd5",
+        "paper": "#fbfaf7",
+        "light": "#f6f5f1",
+        "dark": "#262623",
+        "accent": "#c65f2e"
+      }
+    },
+    "monochrome": {
+      "label": "Monochrome",
+      "hint": "Pure black and white, with no accent hue.",
+      "themeColor": {
+        "light": "#ffffff",
+        "dark": "#000000"
+      },
+      "preview": {
+        "border": "#eaeaea",
+        "paper": "#ffffff",
+        "light": "#fafafa",
+        "dark": "#000000",
+        "accent": "#000000"
+      }
+    },
+    "ocean": {
+      "label": "Ocean",
+      "hint": "Cool blue-gray surfaces with a clear teal accent.",
+      "themeColor": {
+        "light": "#f8fcfd",
+        "dark": "#14242c"
+      },
+      "preview": {
+        "border": "#ccdbe1",
+        "paper": "#f8fcfd",
+        "light": "#f0f5f7",
+        "dark": "#23323a",
+        "accent": "#2f7896"
+      }
+    },
+    "phosphor": {
+      "label": "Forest",
+      "hint": "Graphite surfaces with a vivid evergreen accent.",
+      "themeColor": {
+        "light": "#f7faf7",
+        "dark": "#1a1f1a"
+      },
+      "preview": {
+        "border": "#344034",
+        "paper": "#1a1f1a",
+        "light": "#eff4ef",
+        "dark": "#111411",
+        "accent": "#72e06a"
+      }
+    },
+    "graphite": {
+      "label": "Graphite",
+      "hint": "Balanced gray surfaces with a quiet steel-blue accent.",
+      "themeColor": {
+        "light": "#f7f8fa",
+        "dark": "#1a1f24"
+      },
+      "preview": {
+        "border": "#c5cbd2",
+        "paper": "#f7f8fa",
+        "light": "#edf0f3",
+        "dark": "#1a1f24",
+        "accent": "#697988"
+      }
+    },
+    "marigold": {
+      "label": "Marigold",
+      "hint": "Golden paper with a sunny ochre accent.",
+      "themeColor": {
+        "light": "#fff9e8",
+        "dark": "#2b2410"
+      },
+      "preview": {
+        "border": "#ddcea5",
+        "paper": "#fff9e8",
+        "light": "#f8f0da",
+        "dark": "#4a3a13",
+        "accent": "#b97800"
+      }
+    },
+    "espresso": {
+      "label": "Espresso",
+      "hint": "Velvety roasted cocoa surfaces with a glowing caramel accent.",
+      "themeColor": {
+        "light": "#f7f3ee",
+        "dark": "#261e1b"
+      },
+      "preview": {
+        "border": "#d4c5b7",
+        "paper": "#f7f3ee",
+        "light": "#ede4da",
+        "dark": "#2a1e17",
+        "accent": "#d9822b"
+      }
+    },
+    "ink": {
+      "label": "Ink",
+      "hint": "Cool writing paper with a deep cobalt blue accent, like a fountain pen.",
+      "themeColor": {
+        "light": "#f8fbff",
+        "dark": "#16233a"
+      },
+      "preview": {
+        "border": "#cbd8e6",
+        "paper": "#f8fbff",
+        "light": "#eef4fa",
+        "dark": "#22324a",
+        "accent": "#315fc4"
+      }
+    },
+    "lavender": {
+      "label": "Lavender",
+      "hint": "Soft lilac surfaces with a thoughtful violet accent.",
+      "themeColor": {
+        "light": "#fbfaff",
+        "dark": "#211a2a"
+      },
+      "preview": {
+        "border": "#d8d1e3",
+        "paper": "#fbfaff",
+        "light": "#f4f1f9",
+        "dark": "#302b3d",
+        "accent": "#7254a3"
+      }
+    },
+    "burgundy": {
+      "label": "Burgundy",
+      "hint": "Deep wine surfaces with a restrained ruby accent.",
+      "themeColor": {
+        "light": "#fbf4f2",
+        "dark": "#28141b"
+      },
+      "preview": {
+        "border": "#d8bdc3",
+        "paper": "#fbf4f2",
+        "light": "#f4e7e8",
+        "dark": "#28141b",
+        "accent": "#8f3049"
+      }
+    },
+    "rose": {
+      "label": "Rose",
+      "hint": "Soft pink paper with a lively rose accent.",
+      "themeColor": {
+        "light": "#fff8fc",
+        "dark": "#281523"
+      },
+      "preview": {
+        "border": "#dfc5d3",
+        "paper": "#fff8fc",
+        "light": "#f8eff5",
+        "dark": "#281523",
+        "accent": "#c34f88"
+      }
+    },
+    "solarized": {
+      "label": "Solarized",
+      "hint": "Low-contrast blue-gold tones built for long sessions.",
+      "themeColor": {
+        "light": "#fdf6e3",
+        "dark": "#073642"
+      },
+      "preview": {
+        "border": "#d3c9b2",
+        "paper": "#fdf6e3",
+        "light": "#f2ecda",
+        "dark": "#002b36",
+        "accent": "#a86a00"
+      }
+    }
+  }
+}

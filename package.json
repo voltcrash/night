@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "vp build",
+    "build": "vp run themes:generate && vp build",
     "preview": "vp preview",
     "prepare": "vp config && svelte-kit sync || echo ''",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check": "vp run themes:check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "themes:generate": "node scripts/generate-themes.mjs",
+    "themes:check": "node scripts/generate-themes.mjs --check",
     "test:e2e": "playwright install && playwright test",
     "test": "vp run test:e2e"
   },
