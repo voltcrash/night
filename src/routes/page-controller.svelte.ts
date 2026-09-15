@@ -2013,7 +2013,7 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
   }
 
   function renderLiveLine(line: string, index: number): string {
-    const inCode = liveCodeLines[index] && !line.startsWith("```");
+    const inCode = liveCodeLines[index] && !isFenceLine(line);
     const cacheKey = `${inCode ? "code" : "markdown"}\0${line}`;
     const cached = liveRenderCache.get(cacheKey);
     if (cached !== undefined) return cached;
@@ -2027,25 +2027,113 @@ Press \`${commandPaletteShortcut}\` for the command palette, \`${saveShortcut}\`
     return rendered;
   }
 
+  function isFenceLine(line: string): boolean {
+    return /^\s*(?:`{3,}|~{3,})/.test(line);
+  }
+
+  function isListLine(line: string): boolean {
+    return /^\s*(?:[-+*]|\d+[.)])\s+/.test(line);
+  }
+
+  function isOrderedListLine(line: string): boolean {
+    return /^\s*\d+[.)]\s+/.test(line);
+  }
+
+  function isTableLine(line: string): boolean {
+    return /^\s*\|.*\|\s*$/.test(line);
+  }
+
+  function isTableSeparator(line: string): boolean {
+    if (!isTableLine(line)) return false;
+    const firstPipe = line.indexOf("|");
+    const lastPipe = line.lastIndexOf("|");
+    if (firstPipe < 0 || lastPipe <= firstPipe) return false;
+    const cells = line
+      .slice(firstPipe + 1, lastPipe)
+      .split(/(?<!\\)\|/)
+      .map((cell) => cell.trim());
+    return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+  }
+
+  function tableLineKind(index: number): "header" | "separator" | "body" | undefined {
+    const line = markdownLines[index];
+    if (line === undefined || !isTableLine(line)) return undefined;
+
+    let start = index;
+    while (start > 0 && isTableLine(markdownLines[start - 1]!)) start -= 1;
+    let separator = -1;
+    for (let candidate = start; candidate < markdownLines.length; candidate += 1) {
+      if (!isTableLine(markdownLines[candidate]!)) break;
+      if (isTableSeparator(markdownLines[candidate]!)) {
+        separator = candidate;
+        break;
+      }
+    }
+    if (separator < 0) return undefined;
+    if (index < separator) return "header";
+    if (index === separator) return "separator";
+    return "body";
+  }
+
   function liveLineKind(line: string, index: number): string {
-    if (liveCodeLines[index]) return "code-line";
+    if (liveCodeLines[index]) {
+      if (isFenceLine(line)) return "code-line code-fence";
+      const previous = markdownLines[index - 1];
+      const next = markdownLines[index + 1];
+      const startsCode = !liveCodeLines[index - 1] || isFenceLine(previous ?? "");
+      const endsCode = !liveCodeLines[index + 1] || isFenceLine(next ?? "");
+      return `code-line code-content${startsCode ? " code-start" : ""}${endsCode ? " code-end" : ""}`;
+    }
+    if (!line) return "blank-line";
+    const table = tableLineKind(index);
+    if (table) return `table-line table-${table}`;
     const heading = line.match(/^(#{1,6})\s+/);
     if (heading) return `heading-${heading[1].length}`;
     if (/^>\s?/.test(line)) return "quote-line";
-    if (/^\s*(?:[-+*]|\d+[.)])\s+/.test(line)) return "list-line";
+    if (isListLine(line)) {
+      const previous = markdownLines[index - 1];
+      const next = markdownLines[index + 1];
+      const ordered = isOrderedListLine(line);
+      const continues =
+        previous !== undefined && isListLine(previous) && isOrderedListLine(previous) === ordered;
+      const continuesNext =
+        next !== undefined && isListLine(next) && isOrderedListLine(next) === ordered;
+      return `list-line${continues ? "" : " list-start"}${continuesNext ? "" : " list-end"}${ordered ? " ordered-list" : ""}`;
+    }
     if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) return "rule-line";
     return "";
   }
 
   function renderEditableLine(line: string, index: number): string {
-    if (!line) return "<br>";
     const kind = liveLineKind(line, index);
-    if (kind === "code-line") {
-      const fence = line.match(/^(\s*(?:`{3,}|~{3,}))(.*)$/);
-      return fence
-        ? `<span class="md-syntax">${fence[1]}</span>${escapeHtml(fence[2])}`
-        : escapeHtml(line);
+    if (kind.includes("code-line")) {
+      return isFenceLine(line)
+        ? `<span class="md-syntax">${escapeHtml(line)}</span>`
+        : escapeHtml(line) || "<br>";
     }
+    const table = tableLineKind(index);
+    if (table && table !== "separator") {
+      const firstPipe = line.indexOf("|");
+      const lastPipe = line.lastIndexOf("|");
+      const prefix = line.slice(0, firstPipe + 1);
+      const suffix = line.slice(lastPipe);
+      const cells = line.slice(firstPipe + 1, lastPipe).split(/(?<!\\)\|/);
+      const row = cells
+        .map((cell) => {
+          const leading = cell.match(/^\s*/)?.[0] ?? "";
+          const trailing = cell.match(/\s*$/)?.[0] ?? "";
+          const content = cell.slice(leading.length, cell.length - trailing.length || undefined);
+          return `<span class="live-table-cell">${
+            leading ? `<span class="md-syntax">${escapeHtml(leading)}</span>` : ""
+          }${editableInlineMarkdown(content)}${
+            trailing ? `<span class="md-syntax">${escapeHtml(trailing)}</span>` : ""
+          }</span>`;
+        })
+        .join(`<span class="md-syntax">|</span>`);
+      return `<span class="md-syntax">${escapeHtml(prefix)}</span><span class="live-table-row ${table === "header" ? "header" : "body"}" style="--table-columns: ${cells.length}">${row}</span><span class="md-syntax">${escapeHtml(suffix)}</span>`;
+    }
+    if (kind.includes("table-line")) return `<span class="md-syntax">${escapeHtml(line)}</span>`;
+    if (!line) return "<br>";
     const heading = line.match(/^(#{1,6}\s+)(.*)$/);
     if (heading) {
       return `<span class="md-syntax">${escapeHtml(heading[1])}</span>${editableInlineMarkdown(heading[2])}`;

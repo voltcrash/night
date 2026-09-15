@@ -339,6 +339,87 @@ test("formats Markdown while editing in the page pane", async ({ page }) => {
   await expect(line).toContainText("# Inline heading");
 });
 
+test("keeps the editable page preview aligned with read-only rendering", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(editor).toBeEnabled();
+
+  await editor.fill(
+    "# Formatting tour\n\nThis has **bold**, _italic_, ~~strike~~, ==highlight==, `code`, and [a link](https://example.com).\n\n## Lists\n\n- First item\n- **Bold item**\n- [x] Finished\n- [ ] Pending\n\n1. Ordered first\n2. Ordered second\n\n> A quoted line\n\n---\n\n```ts\nconst value = 42;\n```\n\n| Name | State |\n| --- | --- |\n| Onyx | Ready |",
+  );
+
+  const live = page.locator(".preview-pane .live-editor");
+  await expect(live.locator(".live-editable-line em")).toHaveText("italic");
+  await expect(live.locator(".live-table-row.header")).toBeVisible();
+  await expect(live.locator(".live-table-row.body")).toBeVisible();
+  await expect(live.locator(".live-editable-line.code-content")).toHaveText("const value = 42;");
+  await page.locator(".preview-pane").evaluate((pane) => {
+    pane.scrollTop = 0;
+    pane.querySelector<HTMLElement>(".live-editor")!.scrollTop = 0;
+  });
+
+  const editableGeometry = await live.evaluate((container) => {
+    const rectOf = (selector: string) => {
+      const rect = container.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+    };
+    const listRect = (selector: string) => {
+      const listLines = [...container.querySelectorAll<HTMLElement>(selector)];
+      const firstList = listLines[0]?.getBoundingClientRect();
+      const lastList = listLines.at(-1)?.getBoundingClientRect();
+      return firstList && lastList
+        ? {
+            x: firstList.x,
+            y: firstList.y,
+            width: firstList.width,
+            height: lastList.bottom - firstList.y,
+          }
+        : null;
+    };
+    return [
+      rectOf(".heading-1"),
+      rectOf(
+        ".live-editable-line:not([class*='heading-']):not(.blank-line):not(.list-line):not(.quote-line):not(.rule-line):not(.code-line):not(.table-line)",
+      ),
+      rectOf(".heading-2"),
+      listRect(".list-line:not(.ordered-list)"),
+      listRect(".list-line.ordered-list"),
+      rectOf(".quote-line"),
+      rectOf(".rule-line"),
+      rectOf(".code-content"),
+    ];
+  });
+
+  await page.getByRole("tab", { name: "Tools" }).click();
+  await page.getByRole("button", { name: "Turn on read-only" }).click();
+  const article = page.locator(".preview-pane article.prose");
+  await expect(article.locator("table")).toBeVisible();
+  await page.locator(".preview-pane").evaluate((pane) => {
+    pane.scrollTop = 0;
+  });
+
+  const readOnlyGeometry = await article.evaluate((container) => {
+    const selectors = ["h1", "p", "h2", "ul", "ol", "blockquote", "hr", "pre"];
+    return selectors.map((selector) => {
+      const rect = container.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null;
+    });
+  });
+
+  expect(editableGeometry).toHaveLength(readOnlyGeometry.length);
+  editableGeometry.forEach((editable, index) => {
+    const readOnly = readOnlyGeometry[index];
+    expect(editable).not.toBeNull();
+    expect(readOnly).not.toBeNull();
+    expect(Math.abs(editable!.x - readOnly!.x), `geometry ${index} x`).toBeLessThan(1);
+    expect(Math.abs(editable!.y - readOnly!.y), `geometry ${index} y`).toBeLessThan(1);
+    expect(Math.abs(editable!.width - readOnly!.width), `geometry ${index} width`).toBeLessThan(1);
+    expect(Math.abs(editable!.height - readOnly!.height), `geometry ${index} height`).toBeLessThan(
+      1,
+    );
+  });
+});
+
 test("can reveal the active Markdown line while editing the page", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();

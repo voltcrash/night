@@ -410,7 +410,7 @@
 					<div class="preview-empty"><PencilLine size={26} /><strong>Nothing here yet</strong><span>Start writing in the other pane, or unlock this one to begin.</span></div>
 				{/if}
 			{:else}
-				<div class="live-editor" bind:this={liveEditorContainer} aria-label="Page editor">
+				<div class="live-editor prose" bind:this={liveEditorContainer} aria-label="Page editor">
 					{#each markdownLines as line, index}
 						{#if inlinePreviewBehavior === 'rendered'}
 							<div class="live-editable-line {liveLineKind(line, index)}" class:active={index === liveLine} contenteditable={saveState !== 'loading' && transferState !== 'working'} role="textbox" tabindex="0" aria-label={`Markdown line ${index + 1}`} aria-multiline="false" data-live-line={index} spellcheck="true" onfocus={() => onLiveLineFocus(index)} oninput={(event) => onRenderedLineInput(index, event.currentTarget)} onkeydown={(event) => onRenderedLineKeydown(event, index)}>{@html renderEditableLine(line, index)}</div>

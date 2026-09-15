@@ -1066,3 +1066,224 @@
 .prose .data-footnote-backref {
   text-decoration: none;
 }
+/* Keep the editable preview on the same typographic grid as the read-only article. */
+.live-editor.prose {
+  padding: 49px clamp(30px, 6vw, 78px) 90px;
+}
+.live-editor.prose .live-editable-line {
+  min-height: 0;
+  border-radius: 0;
+  outline: 0;
+  white-space: normal;
+}
+.live-editor.prose .live-editable-line .md-syntax {
+  font-size: 0;
+  line-height: 0;
+}
+.live-editor.prose .live-editable-line:hover,
+.live-editor.prose .live-editable-line.active {
+  background: transparent;
+  box-shadow: none;
+}
+.live-editor.prose
+  .live-editable-line:is(.heading-1, .heading-2, .heading-3, .heading-4, .heading-5, .heading-6) {
+  color: var(--ink-strong);
+  font-family: var(--font-heading);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.live-editor.prose .live-editable-line.heading-1 {
+  margin: 0 0 25px;
+  font-size: clamp(32px, 4vw, 42px);
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line.heading-2 {
+  margin: 25px 0 14px;
+  font-size: 25px;
+  font-weight: 520;
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line.heading-3 {
+  margin: 32px 0 10px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line:is(.heading-4, .heading-5, .heading-6) {
+  margin: 26px 0 9px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.live-editor.prose .live-editable-line.list-line {
+  position: relative;
+  margin: 7px 0;
+  padding: 0 0 0 24px;
+}
+.live-editor.prose .live-editable-line.list-line.list-start {
+  margin-top: 0;
+}
+.live-editor.prose .live-editable-line.list-line.list-start.ordered-list {
+  margin-top: 15px;
+}
+.live-editor.prose .live-editable-line.list-line:has(.live-task-check) {
+  padding-left: 5px;
+}
+.live-editor.prose .live-list-marker {
+  display: inline-grid;
+  width: 24px;
+  margin-left: -24px;
+  margin-right: 3px;
+  place-items: center end;
+}
+.live-editor.prose .live-task-check {
+  width: 16px;
+  height: 16px;
+  margin: 0 9px 0 0;
+  border: 1px solid var(--line-hover);
+  border-radius: 4px;
+  vertical-align: -2px;
+  color: var(--on-solid);
+  font: 0.7em/1 sans-serif;
+}
+.live-editor.prose .live-task-check.done {
+  border-color: var(--line-hover);
+  background: var(--line-hover);
+  color: var(--on-solid);
+}
+.live-editor.prose .live-task-check.done::before {
+  content: "✓";
+}
+.live-editor.prose .live-editable-line.quote-line {
+  margin: 20px 0 0;
+  padding: 2px 0 2px 19px;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+  font-size: 19px;
+  font-style: italic;
+  line-height: 1.76;
+}
+.live-editor.prose .live-editable-line.rule-line {
+  position: relative;
+  height: 1px;
+  margin: 36px 0;
+  padding: 0;
+}
+.live-editor.prose .live-editable-line.rule-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-top: 1px solid var(--line);
+}
+.live-editor.prose .live-editable-line.code-fence {
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 0;
+}
+.live-editor.prose .live-editable-line.code-content {
+  margin: 0;
+  padding: 0 18px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font: 17px / 1.76 var(--font-code);
+  white-space: pre;
+  overflow-x: auto;
+}
+.live-editor.prose .live-editable-line.code-content.code-start {
+  padding-top: 18px;
+  border-radius: 8px 8px 0 0;
+}
+.live-editor.prose .live-editable-line.code-content.code-end {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-radius: 0 0 8px 8px;
+}
+.live-editor.prose .live-editable-line.code-content.code-start.code-end {
+  border-radius: 8px;
+}
+.live-editor.prose .live-editable-line code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--subtle-strong);
+  color: var(--accent-quiet);
+  font-family: var(--font-code);
+  font-size: 0.84em;
+}
+.live-editor.prose .live-editable-line mark {
+  padding: 0.08em 0.18em;
+  border-radius: 3px;
+  background: var(--selection);
+  color: inherit;
+}
+.live-editor.prose .live-editable-line.table-line {
+  margin: 0;
+  font-size: 0.88em;
+  line-height: 1.76;
+  white-space: normal;
+}
+.live-editor.prose .live-editable-line.table-separator {
+  height: 0;
+  min-height: 0;
+  overflow: hidden;
+  font-size: 0;
+  line-height: 0;
+}
+.live-editor.prose .live-editable-line.table-line > .md-syntax {
+  display: none;
+}
+.live-editor.prose .live-table-row {
+  display: grid;
+  grid-template-columns: repeat(var(--table-columns), minmax(0, 1fr));
+  width: 100%;
+}
+.live-editor.prose .live-table-row > .md-syntax {
+  display: none;
+}
+.live-editor.prose .live-table-cell {
+  display: block;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--line-hover);
+  overflow-wrap: anywhere;
+}
+.live-editor.prose .live-table-row.header .live-table-cell {
+  color: var(--ink-strong);
+  background: var(--subtle);
+  font-weight: 650;
+}
+.live-editor.prose .live-editable-line.table-body:not(:has(+ .live-editable-line.table-line)) {
+  margin-bottom: 24px;
+}
+.live-editor.prose
+  .live-editable-line:not(
+    .heading-1,
+    .heading-2,
+    .heading-3,
+    .heading-4,
+    .heading-5,
+    .heading-6,
+    .list-line,
+    .quote-line,
+    .rule-line,
+    .code-line,
+    .table-line,
+    .blank-line
+  ) {
+  margin: 0 0 17px;
+}
+.live-editor.prose .live-editable-line.blank-line {
+  min-height: 0;
+  height: 0;
+  font-size: 0;
+  line-height: 0;
+  margin: 0 !important;
+}
+@media (max-width: 700px) {
+  .live-editor.prose {
+    padding: 36px 25px 80px;
+  }
+}
