@@ -112,6 +112,72 @@ async function setRenderedSelection(
   );
 }
 
+async function pointInsideRenderedText(
+  page: Page,
+  selector: string,
+  offset: number,
+): Promise<{ x: number; y: number; left: number; right: number; top: number }> {
+  return page.locator(selector).evaluate((element, requestedOffset) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node && !node.data.length) node = walker.nextNode() as Text | null;
+    if (!node) throw new Error("Rendered text is not available");
+    const offset = Math.min(Math.max(0, requestedOffset), Math.max(0, node.length - 1));
+    const range = document.createRange();
+    range.setStart(node, offset);
+    range.setEnd(node, Math.min(node.length, offset + 1));
+    const rect = range.getBoundingClientRect();
+    return {
+      x: rect.left + Math.max(1, rect.width) / 2,
+      y: rect.top + rect.height / 2,
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+    };
+  }, offset);
+}
+
+async function renderedSelectionDetails(page: Page) {
+  return page.evaluate(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    const lines = [...document.querySelectorAll<HTMLElement>("[data-live-line]")];
+    const lineOf = (node: Node | null): HTMLElement | undefined => {
+      const element = node instanceof HTMLElement ? node : node?.parentElement;
+      return element?.closest<HTMLElement>("[data-live-line]") ?? undefined;
+    };
+    const offsetOf = (line: HTMLElement, node: Node, offset: number): number => {
+      const range = document.createRange();
+      range.selectNodeContents(line);
+      range.setEnd(node, offset);
+      return range.cloneContents().textContent?.length ?? 0;
+    };
+    const globalOffset = (line: HTMLElement | undefined, node: Node, offset: number) => {
+      if (!line) return undefined;
+      const index = Number(line.dataset.liveLine);
+      const local = offsetOf(line, node, offset);
+      return (
+        lines
+          .slice(0, index)
+          .reduce((total, candidate) => total + candidate.textContent!.length + 1, 0) + local
+      );
+    };
+    const anchorLine = lineOf(selection.anchorNode);
+    const focusLine = lineOf(selection.focusNode);
+    const anchor = globalOffset(anchorLine, selection.anchorNode!, selection.anchorOffset);
+    const focus = globalOffset(focusLine, selection.focusNode!, selection.focusOffset);
+    const rect = selection.getRangeAt(0).getBoundingClientRect();
+    return {
+      anchorLine: anchorLine?.dataset.liveLine ?? null,
+      focusLine: focusLine?.dataset.liveLine ?? null,
+      start: anchor === undefined || focus === undefined ? null : Math.min(anchor, focus),
+      end: anchor === undefined || focus === undefined ? null : Math.max(anchor, focus),
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      text: selection.toString(),
+    };
+  });
+}
+
 test("traps modal focus and returns it to the opener", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("textbox", { name: "Markdown editor" })).toBeEnabled();
@@ -495,6 +561,101 @@ test("allows mouse selection to cross rendered lines", async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => (window as typeof window & { onyxCopied?: string }).onyxCopied))
     .toBe(source.slice(2, source.indexOf("ending")));
+});
+
+test("places the rendered caret on the visible text that was clicked", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = [
+    "# Welcome to Onyx",
+    "",
+    "A paragraph with enough text to test the caret.",
+    "",
+    "> Good tools disappear into the work.",
+  ].join("\n");
+  await markdown.fill(source);
+  const sourceLines = source.split("\n");
+  const lineOffsets = sourceLines.map((_, index) =>
+    sourceLines.slice(0, index).reduce((total, line) => total + line.length + 1, 0),
+  );
+
+  const cases = [
+    { selector: ".live-rendered-content h1", line: 0, prefixLength: 2, offset: 4 },
+    {
+      selector: ".live-rendered-content > p",
+      line: 2,
+      prefixLength: 0,
+      offset: 4,
+    },
+    {
+      selector: ".live-rendered-content > blockquote > p",
+      line: 4,
+      prefixLength: 2,
+      offset: 4,
+    },
+  ];
+
+  for (const candidate of cases) {
+    const point = await pointInsideRenderedText(page, candidate.selector, candidate.offset);
+    await page.mouse.click(point.x, point.y);
+    await expect
+      .poll(() => renderedSelectionDetails(page))
+      .toMatchObject({ anchorLine: String(candidate.line), focusLine: String(candidate.line) });
+    const selection = await renderedSelectionDetails(page);
+    expect(selection).not.toBeNull();
+    if (!selection) throw new Error("The browser did not expose the rendered caret");
+    const expectedOffset = lineOffsets[candidate.line]! + candidate.prefixLength + candidate.offset;
+    expect(selection.start).toBeGreaterThanOrEqual(expectedOffset);
+    expect(selection.start).toBeLessThanOrEqual(expectedOffset + 1);
+    expect(selection.rect.x).toBeGreaterThanOrEqual(point.left - 2);
+    expect(selection.rect.x).toBeLessThanOrEqual(point.right + 2);
+    expect(Math.abs(selection.rect.y - point.top)).toBeLessThan(3);
+  }
+});
+
+test("keeps drag selection continuous across formatted rendered blocks", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  await markdown.fill(
+    "# Welcome to Onyx\n\nA paragraph with enough text to select.\n\n> Good tools disappear into the work.",
+  );
+
+  const start = await pointInsideRenderedText(page, ".live-rendered-content h1", 4);
+  const end = await pointInsideRenderedText(page, ".live-rendered-content > blockquote > p", 8);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect
+    .poll(() => renderedSelectionDetails(page))
+    .toMatchObject({ anchorLine: "0", focusLine: "4" });
+});
+
+test("triple-click selects a complete rendered Markdown line", async ({ page }) => {
+  await page.goto("/");
+  const markdown = page.getByRole("textbox", { name: "Markdown editor" });
+  await expect(markdown).toBeEnabled();
+  const source = "# Welcome to Onyx\n\nA second line";
+  await markdown.fill(source);
+
+  const point = await pointInsideRenderedText(page, ".live-rendered-content h1", 5);
+  await page.mouse.click(point.x, point.y, { clickCount: 3 });
+
+  await expect
+    .poll(() => renderedSelectionDetails(page))
+    .toMatchObject({
+      anchorLine: "0",
+      focusLine: "1",
+      start: 0,
+      end: "# Welcome to Onyx\n".length,
+      text: "Welcome to Onyx",
+    });
+
+  await page.keyboard.type("Replaced");
+  await expect(markdown).toHaveValue("Replaced\nA second line");
 });
 
 test("keeps the rendered caret usable through typing and line boundaries", async ({ page }) => {
